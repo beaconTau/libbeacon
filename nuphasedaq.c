@@ -26,8 +26,8 @@
 #define MAX_PRETRIGGER 8 
 #define BOARD_CLOCK_HZ 1500000000/16 
 
-// master + slave
-#define NBD(d) (d->fd[1] ? 2 : 1)
+// master
+#define NBD(d) (1)
 
 #define MIN_GOOD_MAX_V 20 
 #define MAX_MISERY 100 
@@ -44,7 +44,7 @@
 
 //#define DEBUG_PRINTOUTS 1 
 
-//register map 
+//register map TODO
 typedef enum
 {
   REG_FIRMWARE_VER       = 0x01, 
@@ -121,6 +121,8 @@ typedef enum
   MODE_POWERSUM=3
 } nuphase_readout_mode_t; 
 
+//TODO . In general it would be better to write everything so it's NP_NUM_BOARDS agnostic, but whatever
+//leave these at 2 so we can avoid touching most of the code for now!!!  
 struct nuphase_dev
 {
   const char * device_name[2]; //msater,slave
@@ -620,10 +622,14 @@ int nuphase_sw_trigger(nuphase_dev_t * d )
 int nuphase_calpulse(nuphase_dev_t * d, unsigned state) 
 {
   uint8_t buf[4] = { REG_CALPULSE, 0,0, state};  
-  int ret;
+  int ret = 0;
+  int i = 0; 
   USING(d); 
-  ret = do_write(d->fd[0], buf); 
-  ret = do_write(d->fd[1], buf); 
+  for (i = 0; i < NP_MAX_BOARDS; i++) 
+  {
+    if (d->fd[i])
+      ret = do_write(d->fd[i], buf); 
+  }
   DONE(d); 
   return ret == NP_SPI_BYTES ? 0 : 1 ;
 }
@@ -635,7 +641,7 @@ nuphase_dev_t * nuphase_open(const char * devicename_master,
                              const char * devicename_slave,
                              int gpio_number, int locking)
 {
-  int locked,fd[2]; 
+  int locked, fd[2]; 
   nuphase_dev_t * dev; 
 
   fd[0] = open(devicename_master, O_RDWR); 
@@ -1529,9 +1535,8 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
         ev[iout]->event_number = hd[iout]->event_number; 
  
       }
-      else //do some checks
+      else if (NP_MAX_BOARDS > 1)  //do some checks
       {
-
 
 
         if (hd[iout]->trig_number != trig_counter[0] + (trig_counter[1] << 24))
@@ -1596,14 +1601,18 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
 
 
       //zero out things that don't make sense if there is no slave
-      if (NBD(d) < 2) 
+      if (NBD(d) < NP_MAX_BOARDS) 
       {
-        hd[iout]->readout_time[1] = 0; 
-        hd[iout]->readout_time_ns[1] = 0; 
-        hd[iout]->trig_time[1] = 0; 
-        hd[iout]->deadtime[1] = 0; 
-        hd[iout]->board_id[1] = 0; 
-        memset(ev[iout]->data[1],0, NP_NUM_CHAN * NP_MAX_WAVEFORM_LENGTH); 
+        int iibd; 
+        for (iibd = 0; iibd < NP_MAX_BOARDS; iibd++) 
+        {
+          hd[iout]->readout_time[1] = 0; 
+          hd[iout]->readout_time_ns[1] = 0; 
+          hd[iout]->trig_time[1] = 0; 
+          hd[iout]->deadtime[1] = 0; 
+          hd[iout]->board_id[1] = 0; 
+          memset(ev[iout]->data[1],0, NP_NUM_CHAN * NP_MAX_WAVEFORM_LENGTH); 
+        }
 
       }
 
@@ -2126,7 +2135,7 @@ int nuphase_configure_ext_trigger_in(nuphase_dev_t * d, nuphase_ext_input_config
 /** get the external trigger config */ 
 int nuphase_get_ext_trigger_in(nuphase_dev_t * d, nuphase_ext_input_config_t * config) 
 {
-  uint8_t cfg_buf[NP_SPI_ENABLE]; 
+  uint8_t cfg_buf[NP_SPI_BYTES]; 
   int ret = nuphase_read_register(d, REG_EXT_INPUT_CONFIG, cfg_buf, MASTER); 
 
   config->use_as_trigger = cfg_buf[3] & 1; 

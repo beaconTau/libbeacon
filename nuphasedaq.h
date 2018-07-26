@@ -59,7 +59,7 @@ typedef struct nuphase_ext_input_config
 typedef enum nuphase_which_board
 {
   MASTER = 0, 
-  SLAVE = 1
+  SLAVE =1
 } nuphase_which_board_t; 
 
 

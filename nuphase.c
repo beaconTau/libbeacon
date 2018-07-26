@@ -6,15 +6,16 @@
 
 //these need to be incremented if the structs change incompatibly
 //and then generic_*_read must be updated to delegate appropriately. 
-#define NUPHASE_HEADER_VERSION 2 
-#define NUPHASE_EVENT_VERSION 2 
-#define NUPHASE_STATUS_VERSION 2 
+#define NUPHASE_HEADER_VERSION 0 
+#define NUPHASE_EVENT_VERSION 0 
+#define NUPHASE_STATUS_VERSION 0 
 #define NUPHASE_HK_VERSION 0 
 
-#define NUPHASE_HEADER_MAGIC 0xa1 
-#define NUPHASE_EVENT_MAGIC  0xd0 
-#define NUPHASE_STATUS_MAGIC 0x57 
-#define NUPHASE_HK_MAGIC     0x79 
+
+#define NUPHASE_HEADER_MAGIC 0xbe  
+#define NUPHASE_EVENT_MAGIC  0xac 
+#define NUPHASE_STATUS_MAGIC 0x04 
+#define NUPHASE_HK_MAGIC     0xcc 
 
 
 //TODO there are apparently much faster versions of these 
@@ -133,106 +134,13 @@ static int packet_start_read( struct generic_file gf, struct packet_start * star
 
 
 
-typedef struct nuphase_header_v0
-{
-  uint64_t event_number;         
-  uint64_t trig_number;                          
-  uint16_t buffer_length;                        
-  uint16_t pretrigger_samples;                   
-  uint32_t readout_time;                         
-  uint32_t readout_time_ns;                      
-  uint64_t trig_time;                            
-  uint32_t approx_trigger_time;                  
-  uint32_t approx_trigger_time_nsecs;            
-  uint16_t triggered_beams;                      
-  uint16_t beam_mask;                            
-  uint32_t beam_power[NP_NUM_BEAMS];             
-  uint32_t deadtime;                             
-  uint8_t buffer_number;                         
-  uint8_t channel_mask;                          
-  uint8_t channel_overflow;                      
-  uint8_t buffer_mask;                           
-  uint8_t board_id;                              
-  nuphase_trig_type_t trig_type;                 
-  uint8_t calpulser;                             
-} nuphase_header_v0_t; 
-
-typedef struct nuphase_header_v1
-{
-  uint64_t event_number;         
-  uint64_t readout_number;         
-  uint64_t trig_number;                          
-  uint16_t buffer_length;                        
-  uint16_t pretrigger_samples;                   
-  uint32_t readout_time;                         
-  uint32_t readout_time_ns;                      
-  uint64_t trig_time;                            
-  uint32_t approx_trigger_time;                  
-  uint32_t approx_trigger_time_nsecs;            
-  uint16_t triggered_beams;                      
-  uint16_t beam_mask;                            
-  uint32_t beam_power[NP_NUM_BEAMS];             
-  uint32_t deadtime;                             
-  uint8_t buffer_number;                         
-  uint8_t channel_mask;                          
-  uint8_t channel_overflow;                      
-  uint8_t buffer_mask;                           
-  uint8_t board_id;                              
-  nuphase_trig_type_t trig_type;                 
-  uint8_t calpulser;                             
-} nuphase_header_v1_t; 
-
 
 /* Offsets from start of structs for headers */ 
-const int nuphase_header_sizes []=  { sizeof(nuphase_header_v0_t), sizeof(nuphase_header_v1_t), sizeof(nuphase_header_t) }; 
-
-
-typedef struct nuphase_event_v0
-{
-  uint64_t event_number; 
-  uint16_t buffer_length; 
-  uint8_t  data[NP_NUM_CHAN][NP_MAX_WAVEFORM_LENGTH]; 
-  uint8_t board_id;     
-} nuphase_event_v0_t; 
-
-typedef struct nuphase_event_v1
-{
-  uint64_t event_number; 
-  uint64_t readout_number; 
-  uint16_t buffer_length; 
-  uint8_t  data[NP_NUM_CHAN][NP_MAX_WAVEFORM_LENGTH]; 
-  uint8_t board_id;     
-} nuphase_event_v1_t; 
-
-typedef struct nuphase_status_v0
-{
-  uint16_t global_scalers[NP_NUM_SCALERS];
-  uint16_t beam_scalers[NP_NUM_SCALERS][NP_NUM_BEAMS];  //!< The scaler for each beam (12 bits) 
-  uint32_t deadtime;               //!< The deadtime fraction (units tbd) 
-  uint32_t readout_time;           //!< CPU time of readout, seconds
-  uint32_t readout_time_ns;        //!< CPU time of readout, nanoseconds 
-  uint32_t trigger_thresholds[NP_NUM_BEAMS]; //!< The trigger thresholds  
-  uint64_t latched_pps_time;      //!< A timestamp corresponding to a pps time 
-  uint8_t board_id;               //!< The board number assigned at startup. 
-
-} nuphase_status_v0_t; 
+const int nuphase_header_sizes []=  { sizeof(nuphase_header_t) }; 
 
 
 
 
-static void convert_header(int version, nuphase_header_t * new_header, const void * old_header) 
-{
-  if (version == NUPHASE_HEADER_VERSION) 
-  {
-      memcpy(new_header,old_header,sizeof(*new_header)); 
-  }
-  else
-  {
-      fprintf(stderr,"unknown version: %d\n", version); 
-      memset(new_header,0,sizeof(*new_header)); 
-  }
-
-}
 
 
 /* The on-disk format is just packet_start followed by the newest version of the
@@ -276,20 +184,10 @@ static int nuphase_header_generic_read(struct generic_file gf, nuphase_header_t 
   got = packet_start_read(gf, &start, NUPHASE_HEADER_MAGIC, NUPHASE_HEADER_VERSION); 
   if (got) return got; 
 
-  void * oldmem = 0;
-
   switch(start.ver) 
   {
     //add cases here if necessary 
-    case 0: 
-      wanted = nuphase_header_sizes[start.ver]; 
-      oldmem = malloc(wanted); 
-      got = generic_read(gf, wanted, oldmem); 
-      cksum = stupid_fletcher16(wanted, oldmem); 
-      convert_header(start.ver,h, oldmem); 
-      free(oldmem); 
-      break; 
-    case NUPHASE_HEADER_VERSION: //this is the most recent header!
+   case NUPHASE_HEADER_VERSION: //this is the most recent header!
       wanted = sizeof(nuphase_header_t); 
       got = generic_read(gf, wanted, h); 
       cksum = stupid_fletcher16(wanted, h); 
@@ -490,8 +388,6 @@ static int nuphase_status_generic_read(struct generic_file gf, nuphase_status_t 
   int got; 
   int wanted; 
   uint16_t cksum; 
-  nuphase_status_v0_t v0; 
-
 
   got = packet_start_read(gf, &start, NUPHASE_STATUS_MAGIC, NUPHASE_STATUS_VERSION); 
   if (got) return got; 
@@ -499,20 +395,7 @@ static int nuphase_status_generic_read(struct generic_file gf, nuphase_status_t 
   switch(start.ver) 
   {
     //add cases here if necessary 
-    case 0: 
-      wanted = sizeof(nuphase_status_v0_t); 
-      got = generic_read(gf, wanted, &v0); 
-      cksum = stupid_fletcher16(wanted, &v0); 
-      memcpy(st->global_scalers, v0.global_scalers, sizeof(v0.global_scalers)); 
-      memcpy(st->beam_scalers, v0.beam_scalers, sizeof(v0.beam_scalers)); 
-      st->deadtime = v0.deadtime; 
-      st->readout_time = v0.readout_time; 
-      st->readout_time_ns = v0.readout_time; 
-      memcpy(st->trigger_thresholds, v0.trigger_thresholds, sizeof(v0.trigger_thresholds)); 
-      st->board_id = v0.board_id; 
-      st->latched_pps_time = 0; 
-      break; 
-    case NUPHASE_STATUS_VERSION: //this is the most recent status!
+   case NUPHASE_STATUS_VERSION: //this is the most recent status!
       wanted = sizeof(nuphase_status_t); 
       got = generic_read(gf, wanted, st); 
       cksum = stupid_fletcher16(wanted, st); 
@@ -732,28 +615,27 @@ int nuphase_header_print(FILE *f, const nuphase_header_t *hd)
 
   fprintf(f, "EVENT_NUMBER %"PRIu64"\n", hd->event_number ); 
   fprintf(f, "\t%s TRIGGER\n", trig_type_names[hd->trig_type]); 
-  fprintf(f,  "\ttrig num: %"PRIu64" boards: [%d,%d], sync_problem: %x\n", hd->trig_number, hd->board_id[0], hd->board_id[1], hd->sync_problem); 
+  fprintf(f,  "\ttrig num: %"PRIu64" boards:", hd->trig_number); 
+  for (i = 0; i < NP_MAX_BOARDS; i++) 
+  {
+    fprintf(f, " %d", hd->board_id[i]); 
+  }
+  fprintf(f , " sync_problem: %x\n", hd->sync_problem); 
   fprintf(f, "\tbuf len: %u ; pretrig: %u\n", hd->buffer_length, hd->pretrigger_samples); 
   fprintf(f,"\tbuf num: %u, buf_mask: %x\n", hd->buffer_number, hd->buffer_mask); 
-  t = hd->readout_time[0];
-  tim = gmtime((time_t*) &t); 
-  strftime(timstr,sizeof(timstr), "%Y-%m-%d %H:%M:%S", tim);  
-  fprintf(f, "\tbd %d rdout time: %s.%09d UTC\n",hd->board_id[0],timstr, hd->readout_time_ns[0]); 
-  if (hd->board_id[1])
+  for (i = 0; i < NP_MAX_BOARDS; i++) 
   {
-    t = hd->readout_time[1];
+    if (!hd->board_id[i]) continue; 
+    t = hd->readout_time[i];
     tim = gmtime((time_t*) &t); 
     strftime(timstr,sizeof(timstr), "%Y-%m-%d %H:%M:%S", tim);  
-    fprintf(f, "\tbd %d rdout time: %s.%09d UTC\n",hd->board_id[1], timstr, hd->readout_time_ns[1]); 
-   
+    fprintf(f, "\tbd %d rdout time: %s.%09d UTC\n",hd->board_id[i],timstr, hd->readout_time_ns[i]); 
   }
 
-  fprintf(f, "\tbd %d trig time (raw): %"PRIu64"\n", hd->board_id[0], hd->trig_time[0]); 
-
-  if (hd->board_id[1])
+  for (i = 0; i < NP_MAX_BOARDS; i++) 
   {
-
-    fprintf(f, "\tbd %d trig time (raw): %"PRIu64"\n", hd->board_id[1], hd->trig_time[1]); 
+    if (hd->board_id[i])
+      fprintf(f, "\tbd %d trig time (raw): %"PRIu64"\n", hd->board_id[i], hd->trig_time[i]); 
   }
 
   t = hd->approx_trigger_time; 
@@ -767,10 +649,23 @@ int nuphase_header_print(FILE *f, const nuphase_header_t *hd)
   {
     fprintf(f,"\t\tB%02d: %u\n", i, hd->beam_power[i]); 
   }
-  fprintf(f,"\tprev sec deadtime: (%u, %u)\n", hd->deadtime[0], hd->deadtime[1]); 
-  fprintf(f,"\ttrig_channel_mask: %x\n", hd->channel_mask); 
-  fprintf(f,"\tchannel_read_mask: (%x,%x)\n", hd->channel_read_mask[0],hd->channel_read_mask[1]); 
-  fprintf(f,"\tcalpulser: %s\n", hd->calpulser ? "yes" : "no"); 
+  fprintf(f,"\tprev sec deadtime: ");
+  for (i = 0; i < NP_MAX_BOARDS; i++)
+  {
+    if (hd->board_id[i]) 
+      fprintf(f," %u", hd->deadtime[i]); 
+  }
+
+  fprintf(f,"\n\ttrig_channel_mask: %x\n", hd->channel_mask); 
+  fprintf(f,"\tchannel_read_mask: \n"); 
+  for (i = 0; i < NP_MAX_BOARDS; i++)
+  {
+    if (hd->board_id[i]) 
+      fprintf(f," %x", hd->channel_read_mask[i]); 
+  }
+
+
+  fprintf(f,"\n\tcalpulser: %s\n", hd->calpulser ? "yes" : "no"); 
   fprintf(f,"\tgate?: %s\n", hd->gate_flag & 1 ? "yes" : "no"); 
   
 
@@ -804,7 +699,7 @@ int nuphase_hk_print(FILE * f, const nuphase_hk_t *hk)
   time_t t = hk->unixTime;
   tim = gmtime(&t); 
   strftime(timstr,sizeof(timstr), "%Y-%m-%d %H:%M:%S", tim);  
-  fprintf(f,"NuPhase HK (at %s.%03d UTC)\n", timstr, hk->unixTimeMillisecs); 
+  fprintf(f,"HK (at %s.%03d UTC)\n", timstr, hk->unixTimeMillisecs); 
   fprintf(f,"  Temperatures: \n"); 
   if (hk->temp_master > -128)
   {
@@ -814,29 +709,8 @@ int nuphase_hk_print(FILE * f, const nuphase_hk_t *hk)
   {
     fprintf(f,"      MASTER: sensor off\n"); 
   }
-
-  if (hk->temp_slave > -128)
-  {
-    fprintf(f,"      SLAVE :  %d C\n", hk->temp_slave); 
-  }
-  else
-  {
-    fprintf(f,"      SLAVE: sensor off\n"); 
-  }
-  fprintf(f,"      CASE  :  %d C\n", hk->temp_case); 
-  fprintf(f,"      ASPSuC:  %d C\n", hk->temp_asps_uc); 
-  fprintf(f,"  Power: \n"); 
-  fprintf(f,"      MASTER     :  %s (%d mA) \n", (hk->on_state & NP_POWER_MASTER)  ? "ON ":"OFF",  hk->current_master); 
-  fprintf(f,"      SLAVE      :  %s (%d mA) \n", (hk->on_state & NP_POWER_SLAVE)  ? "ON ":"OFF",  hk->current_slave); 
-  fprintf(f,"      FRNTEND    :  %s (%d mA) \n", (hk->on_state & NP_POWER_FRONTEND)  ? "ON ":"OFF",  hk->current_frontend); 
-  fprintf(f,"      SBC        :  %s (%d mA) \n", (hk->on_state & NP_POWER_SBC)  ? "ON ":"OFF",  hk->current_sbc); 
-  fprintf(f,"      SWITCH     :  %s (%d mA) \n", (hk->on_state & NP_POWER_SWITCH)  ? "ON ":"OFF",  hk->current_switch); 
-  fprintf(f,"      MASTER_FPGA:  %s \n", ( (hk->gpio_state & NP_FPGA_POWER_MASTER) && ( hk->on_state & NP_POWER_MASTER) )  ? "ON ":"OFF"); 
-  fprintf(f,"      SLAVE_FPGA :  %s \n", ( (hk->gpio_state & NP_FPGA_POWER_SLAVE) && ( hk->on_state & NP_POWER_SLAVE) )  ? "ON ":"OFF"); 
+  fprintf(f,"      MASTER_FPGA:  %s \n", (hk->gpio_state & NP_FPGA_POWER_MASTER)   ? "ON ":"OFF"); 
   fprintf(f,"      SPI        :  %s \n", (hk->gpio_state & NP_SPI_ENABLE)   ? "ON ":"OFF"); 
-  fprintf(f,"      DOWNHOLE   :  %s \n", (hk->gpio_state & NP_DOWNHOLE_POWER)   ? "ON ":"OFF"); 
-  fprintf(f,"      AUX_HEATER :  %s \n", (hk->gpio_state & NP_AUX_HEATER)   ? "ON ":"OFF"); 
-  fprintf(f,"      ASPS_HEATER:  %s (%d mA)\n", hk->asps_heater_current ? " ON" : "OFF", hk->asps_heater_current); 
   fprintf(f,"  SBC: \n"); 
   fprintf(f,"     DISK SPACE: %0.3g MB \n", hk->disk_space_kB /1024.);  
   fprintf(f,"     FREE MEM  : %0.3g MB \n", hk->free_mem_kB   /1024.);  
