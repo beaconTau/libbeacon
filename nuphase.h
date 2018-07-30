@@ -89,8 +89,8 @@ typedef struct nuphase_header
   uint64_t trig_time[NP_MAX_BOARDS];             //!< Board trigger time (raw units) 
   uint32_t approx_trigger_time;                  //!< Board trigger time converted to real units (approx secs), master only
   uint32_t approx_trigger_time_nsecs;            //!< Board trigger time converted to real units (approx nnsecs), master only
-  uint16_t triggered_beams;                      //!< The beams that triggered 
-  uint16_t beam_mask;                            //!< The enabled beams
+  uint32_t triggered_beams;                      //!< The beams that triggered 
+  uint32_t beam_mask;                            //!< The enabled beams
   uint32_t beam_power[NP_NUM_BEAMS];             //!< The power in each beam at the trigger time
   uint32_t deadtime[NP_MAX_BOARDS];              //!< ??? Will we have this available? If so, this will be a fraction. (store for slave board as well) 
   uint8_t buffer_number;                         //!< the buffer number (do we need this?) 
