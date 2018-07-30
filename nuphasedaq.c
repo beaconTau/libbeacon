@@ -1043,9 +1043,9 @@ uint16_t nuphase_get_channel_mask(nuphase_dev_t* d)
 }
 
 
-int nuphase_set_trigger_mask(nuphase_dev_t * d, uint16_t mask)
+int nuphase_set_trigger_mask(nuphase_dev_t * d, uint32_t mask)
 {
-  uint8_t trigger_mask_buf[]= { REG_TRIGGER_MASK, 0, (mask >> 8) & 0xff, mask & 0xff}; 
+  uint8_t trigger_mask_buf[]= { REG_TRIGGER_MASK, (mask >> 16) & 0xff, (mask >> 8) & 0xff, mask & 0xff}; 
   USING(d); 
   int written = do_write(d->fd[MASTER], trigger_mask_buf); 
   DONE(d); 
@@ -1053,13 +1053,13 @@ int nuphase_set_trigger_mask(nuphase_dev_t * d, uint16_t mask)
 }
 
 
-uint16_t nuphase_get_trigger_mask(nuphase_dev_t *d) 
+uint32_t nuphase_get_trigger_mask(nuphase_dev_t *d) 
 {
   uint8_t buf[NP_SPI_BYTES]; 
   uint16_t mask; 
   nuphase_read_register(d, REG_TRIGGER_MASK, buf, MASTER); 
   mask = buf[3]; 
-  mask = mask | (buf[2] << 8); 
+  mask = mask | (buf[2] << 8) | (buf[1] << 16); 
   return mask; 
 }
 

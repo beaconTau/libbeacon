@@ -342,10 +342,10 @@ int nuphase_set_thresholds(nuphase_dev_t* d, const uint32_t *trigger_thresholds,
 int nuphase_get_thresholds(nuphase_dev_t* d, uint32_t *trigger_thresolds); 
 
 /** Set the trigger mask. 1 to use all beams */ 
-int nuphase_set_trigger_mask(nuphase_dev_t* d, uint16_t mask); 
+int nuphase_set_trigger_mask(nuphase_dev_t* d, uint32_t mask); 
 
 /* Get the trigger mask. */ 
-uint16_t nuphase_get_trigger_mask(nuphase_dev_t* d); 
+uint32_t nuphase_get_trigger_mask(nuphase_dev_t* d); 
 
 
 /** Set the attenuation for each channel .
