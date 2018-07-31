@@ -3,6 +3,10 @@
 # set  this if you want to see SPI transactions in gory detail 
 SPI_DEBUG=0
 
+# set this to "cheat" on reading thresholds (just copies back last set thresholds instead of actually reading them) 
+#    This will avoid having to implement reading thresholds in firmware, but will return bogus values if
+#    you read before setting. Or if the thresholds get set in a different way... 
+CHEAT_READ_THRESHOLDS=0
 
 CC=gcc
 LD=gcc
@@ -16,6 +20,10 @@ DAQ_LDFLAGS+= -lpthread -L./ -lnuphase -g
 
 ifeq ($(SPI_DEBUG),1)
 	CFLAGS+=-DDEBUG_PRINTOUTS
+endif
+
+ifeq ($(CHEAT_READ_THRESHOLDS),1)
+	CFLAGS+=-DCHEAT_READ_THRESHOLDS
 endif
 
 
