@@ -697,14 +697,41 @@ int nuphase_hk_print(FILE * f, const nuphase_hk_t *hk)
   strftime(timstr,sizeof(timstr), "%Y-%m-%d %H:%M:%S", tim);  
   fprintf(f,"HK (at %s.%03d UTC)\n", timstr, hk->unixTimeMillisecs); 
   fprintf(f,"  Temperatures: \n"); 
-  if (hk->temp_master > -128)
+
+  if (hk->temp_board > -128)
   {
-    fprintf(f,"      MASTER:  %d C\n", hk->temp_master); 
+    fprintf(f,"      BOARD:  %d C\n", hk->temp_board); 
   }
   else
   {
-    fprintf(f,"      MASTER: sensor off\n"); 
+    fprintf(f,"      BOARD: sensor off\n"); 
   }
+
+  if (hk->temp_adc_0 > -128)
+  {
+    fprintf(f,"      ADC0:  %d C\n", hk->temp_adc_0); 
+  }
+  else
+  {
+    fprintf(f,"      ADC0: sensor off\n"); 
+  }
+
+  if (hk->temp_adc_1 > -128)
+  {
+    fprintf(f,"      ADC1:  %d C\n", hk->temp_adc_1); 
+  }
+  else
+  {
+    fprintf(f,"      ADC1: sensor off\n"); 
+  }
+
+
+  fprintf(f,"  Currents:\n"); 
+  fprintf(f,"      ADC: %hu mA", hk->adc_current); 
+  fprintf(f,"      FRNTND: %hu mA", hk->frontend_current); 
+  fprintf(f,"      AUX: %hu mA", hk->aux_current); 
+  fprintf(f,"      ANT: %hu mA", hk->ant_current); 
+
   fprintf(f,"      MASTER_FPGA:  %s \n", (hk->gpio_state & NP_FPGA_POWER_MASTER)   ? "ON ":"OFF"); 
   fprintf(f,"      SPI        :  %s \n", (hk->gpio_state & NP_SPI_ENABLE)   ? "ON ":"OFF"); 
   fprintf(f,"  SBC: \n"); 

@@ -166,7 +166,16 @@ typedef struct nuphase_hk
 {
   uint32_t unixTime; 
   uint16_t unixTimeMillisecs; 
-  int8_t temp_master;  //C, or -128 if off
+  int8_t temp_board;  //C, or -128 if off
+  int8_t temp_adc_0; 
+  int8_t temp_adc_1; 
+
+  //TODO: these are in mA... make sure that it's actually enough bits! Or change units if necessary. 
+  uint16_t frontend_current; 
+  uint16_t adc_current; 
+  uint16_t aux_current; 
+  uint16_t ant_current; 
+
   nuphase_gpio_power_state_t gpio_state; 
   uint32_t disk_space_kB; 
   uint32_t free_mem_kB;  

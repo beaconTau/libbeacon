@@ -14,8 +14,14 @@
 
 
 
-//TODO These are almost certainly wrong now!!! 
-#define MASTER_TEMP_AIN 0
+#define BOARD_TEMP_AIN 6
+#define ADC_TEMP_0_AIN 0 
+#define ADC_TEMP_1_AIN 2 
+#define FRONTEND_IMON_AIN 5 
+#define ADC_IMON_AIN 3 
+#define ANT_IMON_AIN 1 
+#define AUX_IMON_AIN 4 
+
 #define MASTER_POWER_GPIO 46
 #define COMM_GPIO 60
 
@@ -88,6 +94,19 @@ static float mV_to_C(float val_mV)
 }
 
 
+//--------------------------
+// current conversion 
+// ------------------------
+
+static uint16_t mV_to_mA(float val_mV)
+{
+  float imon_res = 6800.e-6; 
+  float imon_gain = 52.0 ; 
+  float imon_offset = 0.8*1000; 
+
+  return (val_mV /imon_res - imon_offset) / imon_gain; 
+}
+
 
 static uint32_t get_free_kB()
 {
@@ -121,7 +140,17 @@ int nuphase_hk(nuphase_hk_t * hk)
   struct statvfs fs; 
 
   /* now, read in our temperatures*/ 
-  hk->temp_master =  mV_to_C(bbb_ain_mV(MASTER_TEMP_AIN)) ;
+  hk->temp_board =  mV_to_C(1.5*bbb_ain_mV(BOARD_TEMP_AIN)) ;
+  hk->temp_adc_0 =  mV_to_C(1.5*bbb_ain_mV(ADC_TEMP_0_AIN)) ;
+  hk->temp_adc_1 =  mV_to_C(1.5*bbb_ain_mV(ADC_TEMP_1_AIN)) ;
+
+
+  /* and the currents */ 
+  hk->adc_current = mV_to_mA(bbb_ain_mV(ADC_IMON_AIN)); 
+  hk->ant_current = mV_to_mA(bbb_ain_mV(ANT_IMON_AIN)); 
+  hk->aux_current = mV_to_mA(bbb_ain_mV(AUX_IMON_AIN)); 
+  hk->frontend_current = mV_to_mA(bbb_ain_mV(FRONTEND_IMON_AIN)); 
+
 
   /* figure out the disk space  and memory*/ 
   statvfs("/", &fs); 
