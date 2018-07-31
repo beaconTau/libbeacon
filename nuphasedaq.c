@@ -97,7 +97,8 @@ typedef enum
   REG_TRIGOUT_CONFIG     = 0x53, 
   REG_PHASED_TRIGGER     = 0x54, 
   REG_VERIFICATION_MODE  = 0x55, 
-  REG_THRESHOLDS         = 0x56, // add the threshold to this to get the right register
+  REG_THRESHOLD          = 0x56, // add the threshold to this to get the right register
+  REG_PICK_THRESHOLD     = 0x57, // add the threshold to this to get the right register
   REG_SET_READ_REG       = 0x6d, 
   REG_RESET_COUNTER      = 0x7e, 
   REG_RESET_ALL          = 0x7f 
@@ -238,6 +239,7 @@ static uint8_t buf_ram_addr[NP_ADDRESS_MAX][NP_SPI_BYTES];
 static uint8_t buf_clear[1 << NP_NUM_BUFFER][NP_SPI_BYTES];
 static uint8_t buf_reset_buf[NP_SPI_BYTES] = {REG_CLEAR,0,1,0};
 static uint8_t buf_pick_scaler[N_SCALER_REGISTERS][NP_SPI_BYTES]; 
+static uint8_t buf_pick_threshold[NP_NUM_BEAMS][NP_SPI_BYTES]; 
 
 static uint8_t buf_read[NP_SPI_BYTES] __attribute__((unused))= {REG_READ,0,0,0}  ; 
 
@@ -312,6 +314,13 @@ void fillBuffers()
   {
     buf_pick_scaler[i][0]=REG_PICK_SCALER; 
     buf_pick_scaler[i][3]=i;  
+  }
+
+  memset(buf_pick_threshold,0, sizeof(buf_pick_threshold)); 
+  for (i = 0; i < NP_NUM_BEAMS; i++) 
+  {
+    buf_pick_threshold[i][0] = REG_PICK_THRESHOLD; 
+    buf_pick_threshold[i][3] = i; 
   }
 }
 
@@ -1064,7 +1073,7 @@ uint32_t nuphase_get_trigger_mask(nuphase_dev_t *d)
 }
 
 
-int nuphase_set_thresholds(nuphase_dev_t *d, const uint32_t * trigger_thresholds, uint16_t dont) 
+int nuphase_set_thresholds(nuphase_dev_t *d, const uint32_t * trigger_thresholds, uint32_t dont) 
 {
   uint8_t thresholds_buf[NP_NUM_BEAMS][NP_SPI_BYTES]; 
   USING(d); 
@@ -1075,10 +1084,14 @@ int nuphase_set_thresholds(nuphase_dev_t *d, const uint32_t * trigger_thresholds
     if (dont & (i << i)) continue; 
     int threshold = trigger_thresholds[i] < d->min_threshold ? d->min_threshold: trigger_thresholds[i]; 
     threshold = threshold <= 0xfffff ?  threshold : 0xfffff;
-    thresholds_buf[i][0]= REG_THRESHOLDS+i ;
+
+
+    //get it 
+    thresholds_buf[i][0]= REG_THRESHOLD;
     thresholds_buf[i][1]= (threshold >> 16 ) & 0xf;
     thresholds_buf[i][2]= (threshold >> 8) & 0xff; 
     thresholds_buf[i][3]= threshold & 0xff;
+    ret += buffer_append (d,MASTER,buf_pick_threshold[i],0); 
     ret += buffer_append (d,MASTER,thresholds_buf[i],0); 
   }
     
@@ -1096,7 +1109,8 @@ int nuphase_get_thresholds(nuphase_dev_t *d, uint32_t * thresholds)
   USING(d); 
   for (i = 0; i < NP_NUM_BEAMS; i++)
   {
-    ret+= append_read_register(d, MASTER, REG_THRESHOLDS+i, thresholds_buf[i]); 
+    ret+= buffer_append(d,MASTER, buf_pick_threshold[i],0); 
+    ret+= append_read_register(d, MASTER, REG_THRESHOLD, thresholds_buf[i]); 
   }
   ret += buffer_send(d,MASTER); 
   DONE(d); 
