@@ -62,10 +62,10 @@ typedef enum
   REG_TRIG_TIME_LOW      = 0xe, 
   REG_TRIG_TIME_HIGH     = 0xf, 
   REG_DEADTIME           = 0x10, 
-  REG_TRIG_INFO          = 0x11, //bits 23-22 : event buffer ; bit 21: calpulse, bits 19-17: pretrig window,  bits16-15: trig type ; bits 14-0: last beam trigger
+  REG_TRIG_INFO          = 0x11, //bits 23-22 : event buffer ; bit 21: calpulse, bits 19-17: pretrig window,  bits16-15: trig type ; bits 14-0: 0
   REG_TRIG_MASKS         = 0x12, // bits 22-15 : channel mask ; bits 14-0 : beam mask
-  REG_LAST_BEAM          = 0x14, // add beam to get right register
-  REG_TRIG_BEAM_POWER    = 0x15, // add beam to get right register
+  REG_LAST_BEAM          = 0x14, 
+  REG_TRIG_BEAM_POWER    = 0x15, 
   REG_CHUNK              = 0x23, //which 32-bit chunk  + i 
   REG_SYNC               = 0x27, 
   REG_UPDATE_SCALERS     = 0x28, 
@@ -1400,6 +1400,7 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
   uint64_t trig_time[2]; 
   uint32_t deadtime; 
   uint32_t tmask; 
+  uint32_t last_beam; 
   uint32_t tinfo; 
 
   int iibuf; 
@@ -1453,6 +1454,7 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
       if (ibd == 0)  // these don't make sense for a slave 
       {
         CHK(append_read_register(d,ibd,REG_TRIG_MASKS,(uint8_t*) &tmask)) 
+        CHK(append_read_register(d,ibd,REG_LAST_BEAM, (uint8_t*) &last_beam)) 
         CHK(append_read_register(d,ibd, REG_TRIG_BEAM_POWER, (uint8_t*)  &hd[iout]->beam_power)); 
       }
 
@@ -1494,6 +1496,7 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
       //now fill in header data 
       tinfo = be32toh(tinfo); 
       tmask = be32toh(tmask); 
+      last_beam = be32toh(last_beam); 
 
       uint8_t hwbuf =  (tinfo >> 22) & 0x3; 
       if ( hwbuf  != ibuf)
@@ -1526,11 +1529,9 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
           hd[iout]->approx_trigger_time_nsecs-=1e9; 
         }
 
-        hd[iout]->triggered_beams = tinfo & 0x7fff; 
-        hd[iout]->beam_mask = tmask & 0x7fff;  
+        hd[iout]->triggered_beams = last_beam & 0xffffff; 
+        hd[iout]->beam_mask = tmask & 0xffffff;  
         hd[iout]->beam_power = be32toh(hd[iout]->beam_power) & 0xffffff; 
-
-  
         hd[iout]->buffer_number = hwbuf; 
         hd[iout]->gate_flag = (tmask >> 23) & 1; 
         hd[iout]->buffer_mask = mask; //this is the current buffer mask
