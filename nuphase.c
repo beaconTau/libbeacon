@@ -644,11 +644,7 @@ int nuphase_header_print(FILE *f, const nuphase_header_t *hd)
   fprintf(f, "\ttrig time (est.): %s.%09d UTC\n",timstr, hd->approx_trigger_time_nsecs); 
   fprintf(f, "\ttrig beams: %x\n", hd->triggered_beams); 
   fprintf(f, "\tenabld beams: %x\n", hd->beam_mask); 
-  fprintf(f, "\tbeam powers:\n") ; 
-  for (i = 0; i < NP_NUM_BEAMS; i++) 
-  {
-    fprintf(f,"\t\tB%02d: %u\n", i, hd->beam_power[i]); 
-  }
+  fprintf(f, "\ttriggered beam power: %u\n", hd->beam_power) ; 
   fprintf(f,"\tprev sec deadtime: ");
   for (i = 0; i < NP_MAX_BOARDS; i++)
   {
