@@ -166,6 +166,12 @@ struct nuphase_dev
   int current_mode[2]; 
 
   bbb_gpio_pin_t * gpio_pin; 
+
+#ifdef CHEAT_READ_THRESHOLDS
+ uint32_t cheat_thresholds[NP_NUM_BEAMS]; 
+#endif  
+
+
   
 }; 
 
@@ -787,6 +793,11 @@ nuphase_dev_t * nuphase_open(const char * devicename_master,
     return 0; 
   }
 
+
+#ifdef CHEAT_READ_THRESHOLDS
+  for (i = 0; i < NP_NUM_BEAMS; i++) dev->cheat_thresholds[i] = 7000; //something non-crazy
+#endif
+
   return dev; 
 
 }
@@ -1082,6 +1093,10 @@ int nuphase_set_thresholds(nuphase_dev_t *d, const uint32_t * trigger_thresholds
   int ret = 0; 
   for (i = 0; i < NP_NUM_BEAMS; i++)
   {
+
+#ifdef CHEAT_READ_THRESHOLDS
+    d->cheat_thresholds[i] = trigger_thresholds[i]; 
+#endif
     if (dont & (i << i)) continue; 
     int threshold = trigger_thresholds[i] < d->min_threshold ? d->min_threshold: trigger_thresholds[i]; 
     threshold = threshold <= 0xfffff ?  threshold : 0xfffff;
@@ -1101,6 +1116,17 @@ int nuphase_set_thresholds(nuphase_dev_t *d, const uint32_t * trigger_thresholds
 
   return ret; 
 }
+
+
+#ifdef CHEAT_READ_THRESHOLDS
+int nuphase_get_thresholds(nuphase_dev_t *d, uint32_t * thresholds) 
+{
+  int i; 
+  for (i = 0; i < NP_NUM_BEAMS; i++) thresholds[i] = d->cheat_thresholds[i]; 
+  return 0; 
+}
+
+#else
 
 int nuphase_get_thresholds(nuphase_dev_t *d, uint32_t * thresholds) 
 {
@@ -1132,6 +1158,7 @@ int nuphase_get_thresholds(nuphase_dev_t *d, uint32_t * thresholds)
 
   return ret; 
 }
+#endif 
 
 #ifdef __arm__ 
 
