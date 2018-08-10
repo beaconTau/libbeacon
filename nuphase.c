@@ -6,7 +6,7 @@
 
 //these need to be incremented if the structs change incompatibly
 //and then generic_*_read must be updated to delegate appropriately. 
-#define NUPHASE_HEADER_VERSION 0 
+#define NUPHASE_HEADER_VERSION 0
 #define NUPHASE_EVENT_VERSION 0 
 #define NUPHASE_STATUS_VERSION 0 
 #define NUPHASE_HK_VERSION 0 
@@ -601,6 +601,14 @@ int nuphase_status_print(FILE *f, const nuphase_status_t *st)
     fprintf(f,"\tBEAM %d: \t%u \t%u \t%u \t%u \n",i, st->beam_scalers[SCALER_SLOW][i], st->beam_scalers[SCALER_SLOW_GATED][i], st->beam_scalers[SCALER_FAST][i], st->trigger_thresholds[i] ); 
   }
   return 0; 
+}
+
+
+#define NUM_TRIG_POL 2
+static const char* nuphase_trigger_polarization_names[NUM_TRIG_POL] = {"H", "V"};
+
+const char* nuphase_trigger_polarization_name(nuphase_trigger_polarization_t pol){
+  return pol >= 0 && pol < NUM_TRIG_POL ? nuphase_trigger_polarization_names[pol] : NULL;
 }
 
 static const char * trig_type_names[4]  = { "NONE", "SW", "RF" ,"EXT" } ; 

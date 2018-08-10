@@ -64,7 +64,20 @@ typedef enum nuphase_trigger_type
   NP_TRIG_SW,    //!< triggered by software (force trigger)  
   NP_TRIG_RF,    //!< triggered by input wavecforms
   NP_TRIG_EXT    //!< triggered by external trigger 
-} nuphase_trig_type_t; 
+} nuphase_trig_type_t;
+
+
+typedef enum nuphase_trigger_polarization
+{
+ H = 0,
+ V = 1
+} nuphase_trigger_polarization_t;
+
+#define NUPHASE_DEFAULT_TRIGGER_POLARIZATION H
+
+// get the name of the nuphase_trigger_polarization_t, returns NULL if not valid
+const char* nuphase_trigger_polarization_name(nuphase_trigger_polarization_t pol);
+
 
 /** in memory layout of nuphase event headers. 
  *
@@ -99,7 +112,8 @@ typedef struct nuphase_header
   uint8_t gate_flag;                             //!< gate flag  (used to be channel_overflow but that was never used) 
   uint8_t buffer_mask;                           //!< The buffer mask at time of read out (do we want this?)   
   uint8_t board_id[NP_MAX_BOARDS];               //!< The board number assigned at startup. If board_id[1] == 0, no slave. 
-  nuphase_trig_type_t trig_type;                 //!< The trigger type? 
+  nuphase_trig_type_t trig_type;                 //!< The trigger type?
+  nuphase_trigger_polarization_t trig_pol;       //!< The trigger polarization
   uint8_t calpulser;                             //!< Was the calpulser on? 
   uint8_t sync_problem;                          //!< Various sync problems. TODO convert to enum 
 } nuphase_header_t; 
