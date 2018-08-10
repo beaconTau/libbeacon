@@ -63,6 +63,13 @@ typedef enum nuphase_which_board
 } nuphase_which_board_t; 
 
 
+typedef enum nuphase_trigger_polarization
+{
+ H = 0,
+ V = 1
+} nuphase_trigger_polarization_t;
+
+
 /** Firmware info retrieved from board */ 
 typedef struct nuphase_fwinfo
 {
@@ -421,7 +428,11 @@ int nuphase_get_trigger_delays(nuphase_dev_t *d, uint8_t * delays);
 /** Set the minimum threshold for any beam (default, 5000) */ 
 int nuphase_set_min_threshold(nuphase_dev_t *d, uint32_t min_threshold); 
 
+/* Set the trigger polarization */
+int nuphase_set_trigger_polarization(nuphase_dev_t* d, nuphase_trigger_polarization_t pol);
 
+/* Get the trigger polarization */
+nuphase_trigger_polarization_t nuphase_get_trigger_polarization(nuphase_dev_t* d);
 
 
 #endif
