@@ -1069,7 +1069,7 @@ int nuphase_set_trigger_mask(nuphase_dev_t * d, uint32_t mask)
 uint32_t nuphase_get_trigger_mask(nuphase_dev_t *d) 
 {
   uint8_t buf[NP_SPI_BYTES]; 
-  uint16_t mask; 
+  uint32_t mask; 
   nuphase_read_register(d, REG_TRIGGER_MASK, buf, MASTER); 
   mask = buf[3]; 
   mask = mask | (buf[2] << 8) | (buf[1] << 16); 
