@@ -98,7 +98,7 @@ typedef enum
   REG_TRIGOUT_CONFIG     = 0x53, 
   REG_PHASED_TRIGGER     = 0x54, 
   REG_VERIFICATION_MODE  = 0x55, 
-  REG_THRESHOLDS         = 0x128, // add the threshold to this to get the right register
+  REG_THRESHOLDS         = 0x80, // add the threshold to this to get the right register
   REG_SET_READ_REG       = 0x6d, 
   REG_RESET_COUNTER      = 0x7e, 
   REG_RESET_ALL          = 0x7f 
