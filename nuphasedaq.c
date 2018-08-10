@@ -1089,7 +1089,7 @@ int nuphase_set_thresholds(nuphase_dev_t *d, const uint32_t * trigger_thresholds
 #ifdef CHEAT_READ_THRESHOLDS
     d->cheat_thresholds[i] = trigger_thresholds[i]; 
 #endif
-    if (dont & (i << i)) continue; 
+    if (dont & (1 << i)) continue; 
     int threshold = trigger_thresholds[i] < d->min_threshold ? d->min_threshold: trigger_thresholds[i]; 
     threshold = threshold <= 0xfffff ?  threshold : 0xfffff;
     thresholds_buf[i][0]= REG_THRESHOLDS+i ;
