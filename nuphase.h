@@ -181,8 +181,9 @@ typedef struct nuphase_hk
   uint32_t unixTime; 
   uint16_t unixTimeMillisecs; 
   int8_t temp_board;  //C, or -128 if off
-  int8_t temp_adc_0; 
-  int8_t temp_adc_1; 
+  int8_t temp_adc;
+  // int8_t temp_adc_0; // rename to temp_adc
+  // int8_t temp_adc_1; // no longer here
 
   //TODO: these are in mA... make sure that it's actually enough bits! Or change units if necessary. 
   uint16_t frontend_current; 

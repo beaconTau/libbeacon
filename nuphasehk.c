@@ -16,7 +16,8 @@
 
 #define BOARD_TEMP_AIN 6
 #define ADC_TEMP_0_AIN 0 
-#define ADC_TEMP_1_AIN 2 
+//#define ADC_TEMP_1_AIN 2 
+
 #define FRONTEND_IMON_AIN 5 
 #define ADC_IMON_AIN 3 
 #define ANT_IMON_AIN 1 
@@ -142,8 +143,8 @@ int nuphase_hk(nuphase_hk_t * hk)
 
   /* now, read in our temperatures*/ 
   hk->temp_board =  mV_to_C(1.5*bbb_ain_mV(BOARD_TEMP_AIN)) ;
-  hk->temp_adc_0 =  mV_to_C(1.5*bbb_ain_mV(ADC_TEMP_0_AIN)) ;
-  hk->temp_adc_1 =  mV_to_C(1.5*bbb_ain_mV(ADC_TEMP_1_AIN)) ;
+  hk->temp_adc =  mV_to_C(1.5*bbb_ain_mV(ADC_TEMP_0_AIN)) ;
+  /* hk->temp_adc_1 =  mV_to_C(1.5*bbb_ain_mV(ADC_TEMP_1_AIN)) ; */
 
 
   /* and the currents */ 

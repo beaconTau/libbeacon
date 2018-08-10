@@ -623,7 +623,7 @@ int nuphase_header_print(FILE *f, const nuphase_header_t *hd)
 
   fprintf(f, "EVENT_NUMBER %"PRIu64"\n", hd->event_number ); 
   fprintf(f, "\t%s TRIGGER\n", trig_type_names[hd->trig_type]);
-  fprintf(f, "\t%s TRIGGER_POLARIZATION\n", nuphase_trigger_polarization_name(hd->trigger_polarization));
+  fprintf(f, "\t%s TRIGGER_POLARIZATION\n", nuphase_trigger_polarization_name(hd->trig_pol));
   fprintf(f,  "\ttrig num: %"PRIu64" boards:", hd->trig_number); 
   for (i = 0; i < NP_MAX_BOARDS; i++) 
   {
@@ -716,23 +716,23 @@ int nuphase_hk_print(FILE * f, const nuphase_hk_t *hk)
     fprintf(f,"      BOARD: sensor off\n"); 
   }
 
-  if (hk->temp_adc_0 > -128)
+  if (hk->temp_adc > -128)
   {
-    fprintf(f,"      ADC0:  %d C\n", hk->temp_adc_0); 
+    fprintf(f,"      ADC:  %d C\n", hk->temp_adc); 
   }
   else
   {
-    fprintf(f,"      ADC0: sensor off\n"); 
+    fprintf(f,"      ADC: sensor off\n"); 
   }
 
-  if (hk->temp_adc_1 > -128)
-  {
-    fprintf(f,"      ADC1:  %d C\n", hk->temp_adc_1); 
-  }
-  else
-  {
-    fprintf(f,"      ADC1: sensor off\n"); 
-  }
+  /* if (hk->temp_adc_1 > -128) */
+  /* { */
+  /*   fprintf(f,"      ADC1:  %d C\n", hk->temp_adc_1);  */
+  /* } */
+  /* else */
+  /* { */
+  /*   fprintf(f,"      ADC1: sensor off\n");  */
+  /* } */
 
 
   fprintf(f,"  Currents:\n"); 

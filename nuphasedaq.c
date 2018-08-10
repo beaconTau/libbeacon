@@ -1584,7 +1584,7 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
         hd[iout]->channel_mask = (tmask >> 15) & 0xff;
 	// REG_TRIG_INFO lowest bits include trigger_polariztion
 	// (we could query REG_TRIG_POLARIZATION directly but this avoids another read)
-        hd[iout]->trigger_polarization = (tinfo & 0xf);
+        hd[iout]->trig_pol = (tinfo & 0xf);
 
         //event stuff
         ev[iout]->buffer_length = d->buffer_length; 
@@ -1779,7 +1779,7 @@ int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * st, nuphase_which_b
       // since the final register is padded with zeros because
       // there's an odd number of (1+beams), we need to not
       // write this padding past the end fo the beam_scalers array
-      if(2*which_channel < NUM_BEAMS){
+      if(2*which_channel < NP_NUM_BEAMS){
 	st->beam_scalers[which_scaler][2*which_channel] = second;
       }
     }
