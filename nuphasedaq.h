@@ -334,7 +334,7 @@ int nuphase_set_transaction_delay(nuphase_dev_t *d, unsigned delay_usecs);
  * @param trigger_thresholds array of thresholds, should have NP_NUM_BEAMS members
  * @param dont_set_mask mask of beams not to set (pass 0 to set all). 
  */
-int nuphase_set_thresholds(nuphase_dev_t* d, const uint32_t *trigger_thresholds, uint16_t dont_set_mask); 
+int nuphase_set_thresholds(nuphase_dev_t* d, const uint32_t *trigger_thresholds, uint32_t dont_set_mask); 
 
 /** Get all the thresholds
  * @param trigger_thresholds array of thresholds to be filled. Should have NP_NUM_BEAMS members.

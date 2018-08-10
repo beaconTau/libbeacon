@@ -98,7 +98,7 @@ typedef enum
   REG_TRIGOUT_CONFIG     = 0x53, 
   REG_PHASED_TRIGGER     = 0x54, 
   REG_VERIFICATION_MODE  = 0x55, 
-  REG_THRESHOLDS         = 0x56, // add the threshold to this to get the right register
+  REG_THRESHOLDS         = 0x128, // add the threshold to this to get the right register
   REG_SET_READ_REG       = 0x6d, 
   REG_RESET_COUNTER      = 0x7e, 
   REG_RESET_ALL          = 0x7f 
@@ -1076,7 +1076,7 @@ uint32_t nuphase_get_trigger_mask(nuphase_dev_t *d)
 }
 
 
-int nuphase_set_thresholds(nuphase_dev_t *d, const uint32_t * trigger_thresholds, uint16_t dont) 
+int nuphase_set_thresholds(nuphase_dev_t *d, const uint32_t * trigger_thresholds, uint32_t dont) 
 {
   uint8_t thresholds_buf[NP_NUM_BEAMS][NP_SPI_BYTES]; 
   USING(d); 
