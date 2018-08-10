@@ -6,7 +6,7 @@
 
 //these need to be incremented if the structs change incompatibly
 //and then generic_*_read must be updated to delegate appropriately. 
-#define NUPHASE_HEADER_VERSION 0 
+#define NUPHASE_HEADER_VERSION 0
 #define NUPHASE_EVENT_VERSION 0 
 #define NUPHASE_STATUS_VERSION 0 
 #define NUPHASE_HK_VERSION 0 
@@ -603,6 +603,14 @@ int nuphase_status_print(FILE *f, const nuphase_status_t *st)
   return 0; 
 }
 
+
+#define NUM_TRIG_POL 2
+static const char* nuphase_trigger_polarization_names[NUM_TRIG_POL] = {"H", "V"};
+
+const char* nuphase_trigger_polarization_name(nuphase_trigger_polarization_t pol){
+  return pol >= 0 && pol < NUM_TRIG_POL ? nuphase_trigger_polarization_names[pol] : NULL;
+}
+
 static const char * trig_type_names[4]  = { "NONE", "SW", "RF" ,"EXT" } ; 
 
 
@@ -614,7 +622,8 @@ int nuphase_header_print(FILE *f, const nuphase_header_t *hd)
   char timstr[128]; 
 
   fprintf(f, "EVENT_NUMBER %"PRIu64"\n", hd->event_number ); 
-  fprintf(f, "\t%s TRIGGER\n", trig_type_names[hd->trig_type]); 
+  fprintf(f, "\t%s TRIGGER\n", trig_type_names[hd->trig_type]);
+  fprintf(f, "\t%s TRIGGER_POLARIZATION\n", nuphase_trigger_polarization_name(hd->trigger_polarization));
   fprintf(f,  "\ttrig num: %"PRIu64" boards:", hd->trig_number); 
   for (i = 0; i < NP_MAX_BOARDS; i++) 
   {

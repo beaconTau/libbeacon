@@ -63,11 +63,6 @@ typedef enum nuphase_which_board
 } nuphase_which_board_t; 
 
 
-typedef enum nuphase_trigger_polarization
-{
- H = 0,
- V = 1
-} nuphase_trigger_polarization_t;
 
 
 /** Firmware info retrieved from board */ 
