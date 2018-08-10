@@ -21,7 +21,12 @@ int bbb_ain_raw(int ain)
 
 float bbb_ain_mV(int ain) 
 {
-  int raw = bbb_ain_raw(ain); 
-  if (raw < 0) return -1; 
-  return raw *1800 / 4095.; 
+  int raw = bbb_ain_raw(ain);  
+  if (raw < 0) return -1;
+
+  /* Eric's conversion factors for BEACON */
+  float adc = 1.8*((float) raw)/4096.0;
+  return adc;
+  /* float temp = (adc - 1.8583)/-0.01167; */
+  /* return 1.5*temp; */
 }
