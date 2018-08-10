@@ -99,10 +99,10 @@ typedef enum
   REG_TRIGOUT_CONFIG     = 0x53, 
   REG_PHASED_TRIGGER     = 0x54, 
   REG_VERIFICATION_MODE  = 0x55, 
-  REG_THRESHOLDS         = 0x80, // add the threshold to this to get the right register
   REG_SET_READ_REG       = 0x6d, 
   REG_RESET_COUNTER      = 0x7e, 
-  REG_RESET_ALL          = 0x7f 
+  REG_RESET_ALL          = 0x7f,
+  REG_THRESHOLDS         = 0x80 // add the threshold to this to get the right register
 
 } nuphase_register_t; 
 
@@ -127,7 +127,7 @@ typedef enum
 //leave these at 2 so we can avoid touching most of the code for now!!!  
 struct nuphase_dev
 {
-  const char * device_name[2]; //msater,slave
+  const char * device_name[2]; //master,slave
   int fd[2];  //master, slave
   int power_gpio; //gpio for enable 
   int enable_locking; 
@@ -234,7 +234,9 @@ static int do_read(int fd, uint8_t * p)
 
 
 
-#define N_SCALER_REGISTERS  (NP_NUM_SCALERS * (1 + NP_NUM_BEAMS)/2) 
+// here we add 1 to the numerator make this round up since 1 + NP_NUM_BEAMS
+// NP_NUM_SCALERS are odd for 
+#define N_SCALER_REGISTERS  (1 + NP_NUM_SCALERS * (1 + NP_NUM_BEAMS)/2) 
 
 // all possible buffers we might batch
 static uint8_t buf_mode[NP_NUM_MODE][NP_SPI_BYTES];
@@ -1762,8 +1764,8 @@ int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * st, nuphase_which_b
     uint16_t second =((uint16_t)(scaler_registers[i][2] >> 4)) |  (((uint16_t) scaler_registers[i][1] ) << 4); 
 //    printf("%d %u %u\n", i, first, second); 
 
-    int which_scaler = i / ((1 + NP_NUM_BEAMS)/2); 
-    int which_channel = i % (( 1 + NP_NUM_BEAMS)/2); 
+    int which_scaler = i / ((1 + NP_NUM_BEAMS)/2);
+    int which_channel = i % (( 1 + NP_NUM_BEAMS)/2);
 
     if (which_channel == 0) 
     {
@@ -1772,8 +1774,14 @@ int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * st, nuphase_which_b
     }
     else
     {
-      st->beam_scalers[which_scaler][2*which_channel-1]= first; 
-      st->beam_scalers[which_scaler][2*which_channel] = second; 
+      st->beam_scalers[which_scaler][2*which_channel-1]= first;
+
+      // since the final register is padded with zeros because
+      // there's an odd number of (1+beams), we need to not
+      // write this padding past the end fo the beam_scalers array
+      if(2*which_channel < NUM_BEAMS){
+	st->beam_scalers[which_scaler][2*which_channel] = second;
+      }
     }
   }
 
