@@ -622,7 +622,8 @@ int nuphase_header_print(FILE *f, const nuphase_header_t *hd)
   char timstr[128]; 
 
   fprintf(f, "EVENT_NUMBER %"PRIu64"\n", hd->event_number ); 
-  fprintf(f, "\t%s TRIGGER\n", trig_type_names[hd->trig_type]); 
+  fprintf(f, "\t%s TRIGGER\n", trig_type_names[hd->trig_type]);
+  fprintf(f, "\t%s TRIGGER_POLARIZATION\n", nuphase_trigger_polarization_name(hd->trigger_polarization));
   fprintf(f,  "\ttrig num: %"PRIu64" boards:", hd->trig_number); 
   for (i = 0; i < NP_MAX_BOARDS; i++) 
   {
