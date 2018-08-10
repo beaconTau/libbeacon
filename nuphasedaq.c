@@ -62,7 +62,7 @@ typedef enum
   REG_TRIG_TIME_LOW      = 0xe, 
   REG_TRIG_TIME_HIGH     = 0xf, 
   REG_DEADTIME           = 0x10, 
-  REG_TRIG_INFO          = 0x11, //bits 23-22 : event buffer ; bit 21: calpulse, bits 19-17: pretrig window,  bits16-15: trig type ; bits 14-0: 0
+  REG_TRIG_INFO          = 0x11, //bits 23-22 : event buffer ; bit 21: calpulse, bits 19-17: pretrig window,  bits16-15: trig type ; bits 14-4: 0: bits 3-0: value of REG_TRIG_POLARIZATION
   REG_TRIG_MASKS         = 0x12, // bits 22-15 : channel mask ; bits 14-0 : beam mask
   REG_LAST_BEAM          = 0x14, 
   REG_TRIG_BEAM_POWER    = 0x15, 
@@ -1380,8 +1380,8 @@ uint16_t nuphase_get_trigger_holdoff(nuphase_dev_t *d)
 
 //indirection! 
 int nuphase_wait_for_and_read_multiple_events(nuphase_dev_t * d, 
-                                      nuphase_header_t (*headers)[NP_NUM_BUFFER], 
-                                      nuphase_event_t  (*events)[NP_NUM_BUFFER])  
+					      nuphase_header_t (*headers)[NP_NUM_BUFFER], 
+					      nuphase_event_t  (*events)[NP_NUM_BUFFER])  
 {
   nuphase_buffer_mask_t mask; ; 
   nuphase_wait(d,&mask,-1,MASTER); 
@@ -1493,7 +1493,7 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
       CHK(append_read_register(d,ibd,REG_DEADTIME, (uint8_t*) &deadtime)) 
       CHK(append_read_register(d,ibd,REG_TRIG_INFO, (uint8_t*) &tinfo)) 
 
-      if (ibd == 0)  // these don't make sense for a slave 
+      if (ibd == MASTER)  // these don't make sense for a slave
       {
         CHK(append_read_register(d,ibd,REG_TRIG_MASKS,(uint8_t*) &tmask)) 
         CHK(append_read_register(d,ibd,REG_LAST_BEAM, (uint8_t*) &last_beam)) 
@@ -1578,9 +1578,11 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
         hd[iout]->gate_flag = (tmask >> 23) & 1; 
         hd[iout]->buffer_mask = mask; //this is the current buffer mask
         hd[iout]->trig_type = (tinfo >> 15) & 0x3; 
-        hd[iout]->calpulser = (tinfo >> 21) & 0x1; 
-        hd[iout]->channel_mask = (tmask >> 15) & 0xff; 
-
+        hd[iout]->calpulser = (tinfo >> 21) & 0x1;
+        hd[iout]->channel_mask = (tmask >> 15) & 0xff;
+	// REG_TRIG_INFO lowest bits include trigger_polariztion
+	// (we could query REG_TRIG_POLARIZATION directly but this avoids another read)
+        hd[iout]->trigger_polarization = (tinfo & 0xf);
 
         //event stuff
         ev[iout]->buffer_length = d->buffer_length; 
