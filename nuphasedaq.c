@@ -92,6 +92,7 @@ typedef enum
   REG_PRETRIGGER         = 0x4c, 
   REG_CLEAR              = 0x4d, //clear buffers 
   REG_BUFFER             = 0x4e,
+  REG_TRIG_POLARIZATION  = 0x4f, // which polarization(s) to trigger on, LSB 0=H, 1=V, 2=both (unimplemented)
   REG_TRIGGER_MASK       = 0x50, 
   REG_TRIG_HOLDOFF       = 0x51, 
   REG_TRIG_ENABLE        = 0x52, 
@@ -1317,6 +1318,34 @@ nuphase_trigger_enable_t nuphase_get_trigger_enables(nuphase_dev_t * d, nuphase_
 
   return ans; 
 }
+
+
+
+int nuphase_set_trigger_polarization(nuphase_dev_t * d, nuphase_trigger_polarization_t pol)
+{
+
+  uint8_t trigger_pol_buf[NP_SPI_BYTES] = {REG_TRIG_POLARIZATION, 0, 0, pol}; 
+//  printf("Setting trigger polarization: [0x%x 0x%x 0x%x 0x%x]\n", trigger_pol_buf[0], trigger_pol_buf[1], trigger_pol_buf[2], trigger_pol_buf[3]);
+  USING(d);
+  int written = do_write(d->fd[MASTER], trigger_pol_buf);
+  DONE(d);
+  return written != NP_SPI_BYTES;
+}
+
+nuphase_trigger_polarization_t nuphase_get_trigger_polarization(nuphase_dev_t * d)
+{
+  uint8_t trigger_pol_buf[NP_SPI_BYTES];
+  nuphase_read_register(d, REG_TRIG_POLARIZATION, trigger_pol_buf, MASTER);
+
+  nuphase_trigger_polarization_t pol = trigger_pol_buf[NP_SPI_BYTES-1];
+  return pol;
+}
+
+
+
+
+
+
 
 int nuphase_phased_trigger_readout(nuphase_dev_t * d, int phased) 
 {
