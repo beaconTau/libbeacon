@@ -1,4 +1,3 @@
-
 #include "nuphasedaq.h" 
 #include <linux/spi/spidev.h>
 #include <sys/types.h>
@@ -18,8 +17,8 @@
 #include <endian.h>
 #include "bbb_gpio.h" 
 
-#define NP_ADDRESS_MAX 128 
-#define NP_SPI_BYTES  NP_WORD_SIZE
+#define NP_ADDRESS_MAX 256
+#define NP_SPI_BYTES NP_WORD_SIZE
 #define NP_NUM_MODE 4
 #define NP_NUM_REGISTER 256
 #define BUF_MASK 0xf
@@ -144,7 +143,7 @@ struct nuphase_dev
   uint8_t next_read_buffer; //what buffer to read next 
   uint8_t hardware_next; // what buffer the hardware things we should read next 
 
-  uint32_t min_threshold; 
+  /* uint32_t min_threshold;  */
   uint16_t poll_interval; 
   int spi_clock; 
   int cs_change; 
@@ -730,7 +729,7 @@ nuphase_dev_t * nuphase_open(const char * devicename_master,
   dev->current_mode[0] = -1; 
   dev->current_mode[1] = -1; 
 
-  dev->min_threshold = 5000; 
+  /* dev->min_threshold = 5000;  */
 
   //Configure the SPI protocol 
   uint8_t mode = SPI_MODE_0;  //we could change the chip select here too 
@@ -1091,8 +1090,9 @@ int nuphase_set_thresholds(nuphase_dev_t *d, const uint32_t * trigger_thresholds
 #ifdef CHEAT_READ_THRESHOLDS
     d->cheat_thresholds[i] = trigger_thresholds[i]; 
 #endif
-    if (dont & (1 << i)) continue;
-    int threshold = trigger_thresholds[i] < d->min_threshold ? d->min_threshold: trigger_thresholds[i];
+    /* if (dont & (1 << i)) continue; */
+    (void) dont;
+    int threshold = trigger_thresholds[i]; // < d->min_threshold ? d->min_threshold: trigger_thresholds[i];
     threshold = threshold <= 0xfffff ?  threshold : 0xfffff;
     thresholds_buf[i][0]= REG_THRESHOLDS+i ;
     thresholds_buf[i][1]= (threshold >> 16 ) & 0xf;
@@ -2298,8 +2298,8 @@ int nuphase_get_trigger_delays(nuphase_dev_t *d, uint8_t * delays)
   return  ret; 
 }
 
-int nuphase_set_min_threshold(nuphase_dev_t * d, uint32_t min) 
-{
-  d->min_threshold = min; 
-  return 0; 
-}
+/* int nuphase_set_min_threshold(nuphase_dev_t * d, uint32_t min)  */
+/* { */
+/*   d->min_threshold = min;  */
+/*   return 0;  */
+/* } */
