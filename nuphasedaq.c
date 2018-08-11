@@ -1757,33 +1757,56 @@ int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * st, nuphase_which_b
   if (ret) return ret; 
   st->deadtime = 0; //TODO 
 
-
-  for (i = 0; i < N_SCALER_REGISTERS; i++) 
-  {
+  uint16_t scaler_values[NP_NUM_SCALERS*(1+NP_NUM_BEAMS)];
+  int sv_ind = 0;
+  for(i=0; i < N_SCALER_REGISTERS; i++){
     uint16_t first = ((uint16_t)scaler_registers[i][3])  |  (((uint16_t) scaler_registers[i][2] & 0xf ) << 8); 
     uint16_t second =((uint16_t)(scaler_registers[i][2] >> 4)) |  (((uint16_t) scaler_registers[i][1] ) << 4); 
-//    printf("%d %u %u\n", i, first, second); 
-
-    int which_scaler = i / ((1 + NP_NUM_BEAMS)/2);
-    int which_channel = i % (( 1 + NP_NUM_BEAMS)/2);
-
-    if (which_channel == 0) 
-    {
-      st->global_scalers[which_scaler] = first; 
-      st->beam_scalers[which_scaler][0]= second; 
+    scaler_values[sv_ind] = first;
+    if(sv_ind + 1 < NP_NUM_SCALERS*(1+NP_NUM_BEAMS)){
+      scaler_values[sv_ind+1] = second;
     }
-    else
-    {
-      st->beam_scalers[which_scaler][2*which_channel-1]= first;
+    sv_ind += 2;
+  }
 
-      // since the final register is padded with zeros because
-      // there's an odd number of (1+beams), we need to not
-      // write this padding past the end fo the beam_scalers array
-      if(2*which_channel < NP_NUM_BEAMS){
-	st->beam_scalers[which_scaler][2*which_channel] = second;
-      }
+  for(i = 0; i < NP_NUM_SCALERS*(1+NP_NUM_BEAMS); i++){
+    int which_scaler = i / (1+NP_NUM_BEAMS);
+    int which_channel = i % (1+NP_NUM_BEAMS);
+
+    if(which_channel==0){
+      st->global_scalers[which_scaler] = scaler_values[i];
+    }
+    else {
+      st->beam_scalers[which_scaler][which_channel-1] = scaler_values[i];
     }
   }
+
+/*   for (i = 0; i < N_SCALER_REGISTERS; i++)  */
+/*   { */
+/*     uint16_t first = ((uint16_t)scaler_registers[i][3])  |  (((uint16_t) scaler_registers[i][2] & 0xf ) << 8);  */
+/*     uint16_t second =((uint16_t)(scaler_registers[i][2] >> 4)) |  (((uint16_t) scaler_registers[i][1] ) << 4);  */
+/* //    printf("%d %u %u\n", i, first, second);  */
+
+/*     int which_scaler = i / ((1 + NP_NUM_BEAMS)/2); */
+/*     int which_channel = i % (( 1 + NP_NUM_BEAMS)/2); */
+
+/*     if (which_channel == 0)  */
+/*     { */
+/*       st->global_scalers[which_scaler] = first;  */
+/*       st->beam_scalers[which_scaler][0]= second;  */
+/*     } */
+/*     else */
+/*     { */
+/*       st->beam_scalers[which_scaler][2*which_channel-1]= first; */
+
+/*       // since the final register is padded with zeros because */
+/*       // there's an odd number of (1+beams), we need to not */
+/*       // write this padding past the end fo the beam_scalers array */
+/*       if(2*which_channel < NP_NUM_BEAMS){ */
+/* 	st->beam_scalers[which_scaler][2*which_channel] = second; */
+/*       } */
+/*     } */
+/*   } */
 
   st->latched_pps_time = latched_pps[0][3]; 
   st->latched_pps_time |= ((uint64_t) latched_pps[0][2]) << 8; 
