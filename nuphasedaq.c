@@ -707,7 +707,7 @@ nuphase_dev_t * nuphase_open(const char * devicename_master,
   }
 
   //make sure sync is off 
-  do_write(fd[0], buf_sync_off); 
+  if (fd[1]) do_write(fd[0], buf_sync_off); 
 
 
 
