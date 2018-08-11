@@ -1014,7 +1014,7 @@ nuphase_buffer_mask_t nuphase_check_buffers(nuphase_dev_t * d, uint8_t * next, n
 
 int nuphase_set_pretrigger(nuphase_dev_t * d, uint8_t pretrigger)
 {
-  uint8_t pretrigger_buf[] = { REG_PRETRIGGER, 0, 0, pretrigger & 0x7}; 
+  uint8_t pretrigger_buf[] = { REG_PRETRIGGER, 0, 0, pretrigger & 0xf};
   int ret = synchronized_command(d, pretrigger_buf,0,0,0); 
   if (!ret) d->pretrigger = pretrigger; 
   return ret; 
