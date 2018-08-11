@@ -21,7 +21,7 @@
 #define NP_ADDRESS_MAX 128 
 #define NP_SPI_BYTES  NP_WORD_SIZE
 #define NP_NUM_MODE 4
-#define NP_NUM_REGISTER 128
+#define NP_NUM_REGISTER 256
 #define BUF_MASK 0xf
 #define MAX_PRETRIGGER 8 
 #define BOARD_CLOCK_HZ 500000000/16
@@ -42,7 +42,7 @@
 
 #define MAX_XFERS 511
 
-//#define DEBUG_PRINTOUTS 1 
+/* #define DEBUG_PRINTOUTS 1  */
 
 //register map TODO
 typedef enum
@@ -589,7 +589,7 @@ int nuphase_read_register(nuphase_dev_t * d, uint8_t address, uint8_t *result, n
 {
 
   int ret; 
-  if (address > NP_ADDRESS_MAX) return -1; 
+  /* if (address >= NP_NUM_REGISTER) return -1;   */
   USING(d); 
   ret =  append_read_register(d,which, address,result); 
   ret += buffer_send(d,which); 
@@ -1091,12 +1091,12 @@ int nuphase_set_thresholds(nuphase_dev_t *d, const uint32_t * trigger_thresholds
 #ifdef CHEAT_READ_THRESHOLDS
     d->cheat_thresholds[i] = trigger_thresholds[i]; 
 #endif
-    if (dont & (1 << i)) continue; 
-    int threshold = trigger_thresholds[i] < d->min_threshold ? d->min_threshold: trigger_thresholds[i]; 
+    if (dont & (1 << i)) continue;
+    int threshold = trigger_thresholds[i] < d->min_threshold ? d->min_threshold: trigger_thresholds[i];
     threshold = threshold <= 0xfffff ?  threshold : 0xfffff;
     thresholds_buf[i][0]= REG_THRESHOLDS+i ;
     thresholds_buf[i][1]= (threshold >> 16 ) & 0xf;
-    thresholds_buf[i][2]= (threshold >> 8) & 0xff; 
+    thresholds_buf[i][2]= (threshold >> 8) & 0xff;
     thresholds_buf[i][3]= threshold & 0xff;
     ret += buffer_append (d,MASTER,thresholds_buf[i],0); 
   }
@@ -1133,6 +1133,7 @@ int nuphase_get_thresholds(nuphase_dev_t *d, uint32_t * thresholds)
 
   if (ret) 
   {
+    fprintf(stderr,  "%s! Got return %d, setting thresholds to zero!\n", __PRETTY_FUNCTION__, ret);
     memset(thresholds, 0,NP_NUM_BEAMS * sizeof(*thresholds)); 
   }
   else
@@ -1311,7 +1312,7 @@ nuphase_trigger_enable_t nuphase_get_trigger_enables(nuphase_dev_t * d, nuphase_
 {
   uint8_t trigger_enable_buf[NP_SPI_BYTES]; 
   nuphase_read_register(d,REG_TRIG_ENABLE, trigger_enable_buf, w); 
-//  printf("Got trigger enables: [0x%x 0x%x 0x%x 0x%x]\n", trigger_enable_buf[0], trigger_enable_buf[1], trigger_enable_buf[2], trigger_enable_buf[3]); 
+  printf("Got trigger enables: [0x%x 0x%x 0x%x 0x%x]\n", trigger_enable_buf[0], trigger_enable_buf[1], trigger_enable_buf[2], trigger_enable_buf[3]); 
   nuphase_trigger_enable_t ans; 
   ans.enable_beamforming = trigger_enable_buf[3] & 1; 
   ans.enable_beam8 = trigger_enable_buf[2] & 1; 
@@ -1351,13 +1352,14 @@ nuphase_trigger_polarization_t nuphase_get_trigger_polarization(nuphase_dev_t * 
 
 int nuphase_phased_trigger_readout(nuphase_dev_t * d, int phased) 
 {
-    uint8_t trigger_buf[NP_SPI_BYTES] = {REG_PHASED_TRIGGER, 0, 0, phased & 1}; 
-    USING(d); 
-    if (d->fd[1]) do_write(d->fd[SLAVE], trigger_buf); 
-    do_write(d->fd[MASTER], trigger_buf); 
-    DONE(d); 
 
-    return 0; 
+  uint8_t trigger_buf[NP_SPI_BYTES] = {REG_PHASED_TRIGGER, 0, 0, phased & 1}; 
+  USING(d); 
+  if (d->fd[SLAVE]) do_write(d->fd[SLAVE], trigger_buf); 
+  do_write(d->fd[MASTER], trigger_buf); 
+  DONE(d); 
+  
+  return 0; 
 
 }
 
@@ -2233,10 +2235,10 @@ int nuphase_get_ext_trigger_in(nuphase_dev_t * d, nuphase_ext_input_config_t * c
 int nuphase_enable_verification_mode(nuphase_dev_t * d, int mode) 
 {
   uint8_t buf[NP_SPI_BYTES] = { REG_VERIFICATION_MODE,0,0, mode & 1}; 
-  USING(d); 
+  USING(d);
   int written = do_write(d->fd[MASTER], buf); 
   DONE(d); 
-  return written != NP_SPI_BYTES; 
+  return written != NP_SPI_BYTES;
 }
 
 int nuphase_query_verification_mode(nuphase_dev_t * d) 

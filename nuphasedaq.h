@@ -33,10 +33,10 @@ typedef uint8_t nuphase_buffer_mask_t;
 
 typedef struct nuphase_trigger_enable
 {
-  uint8_t enable_beamforming : 1; 
-  uint8_t enable_beam8  : 1;  
-  uint8_t enable_beam4a  : 1;  
-  uint8_t enable_beam4b  : 1;  
+  uint8_t enable_beamforming : 1;
+  uint8_t enable_beam8  : 1;
+  uint8_t enable_beam4a  : 1;
+  uint8_t enable_beam4b  : 1;
 } nuphase_trigger_enable_t; 
 
 
