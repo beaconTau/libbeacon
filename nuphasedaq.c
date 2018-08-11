@@ -33,8 +33,8 @@
 
 #define SPI_CAST  (uintptr_t) 
 
-#define NP_DELAY_USECS 0
-#define NP_CS_CHANGE 0
+#define NP_DELAY_USECS 3
+#define NP_CS_CHANGE 1
 
 #define SPI_CLOCK 20000000
 //#define SPI_CLOCK 1000000
@@ -101,7 +101,7 @@ typedef enum
   REG_SET_READ_REG       = 0x6d, 
   REG_RESET_COUNTER      = 0x7e, 
   REG_RESET_ALL          = 0x7f,
-  REG_THRESHOLDS         = 0x80 // add the threshold to this to get the right register
+  REG_THRESHOLDS         = 0x81 // add the threshold to this to get the right register
 
 } nuphase_register_t; 
 
@@ -1525,9 +1525,9 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
       trig_time[1] = be32toh(trig_time[1]) & 0xffffff; 
 
 #ifdef DEBUG_PRINTOUTS
-      printf("Raw event_counter: %x %x\n", event_counter[0], event_counter[1]) ;
-      printf("Raw trig_counter: %x %x\n", trig_counter[0], trig_counter[1]) ;
-      printf("Raw trig_time: %x %x \n", trig_time[0], trig_time[1]) ;
+//      printf("Raw event_counter: %x %x\n", event_counter[0], event_counter[1]) ;
+//      printf("Raw trig_counter: %x %x\n", trig_counter[0], trig_counter[1]) ;
+//      printf("Raw trig_time: %x %x \n", trig_time[0], trig_time[1]) ;
 #endif 
 
 
