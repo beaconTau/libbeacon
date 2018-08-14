@@ -33,10 +33,10 @@ typedef uint8_t nuphase_buffer_mask_t;
 
 typedef struct nuphase_trigger_enable
 {
-  uint8_t enable_beamforming : 1; 
-  uint8_t enable_beam8  : 1;  
-  uint8_t enable_beam4a  : 1;  
-  uint8_t enable_beam4b  : 1;  
+  uint8_t enable_beamforming : 1;
+  uint8_t enable_beam8  : 1;
+  uint8_t enable_beam4a  : 1;
+  uint8_t enable_beam4b  : 1;
 } nuphase_trigger_enable_t; 
 
 
@@ -420,8 +420,8 @@ int nuphase_set_trigger_delays(nuphase_dev_t *d, const uint8_t * delays);
 /** Gets the trigger delays. Should have NP_NUM_CHAN members */ 
 int nuphase_get_trigger_delays(nuphase_dev_t *d, uint8_t * delays); 
 
-/** Set the minimum threshold for any beam (default, 5000) */ 
-int nuphase_set_min_threshold(nuphase_dev_t *d, uint32_t min_threshold); 
+// /** Set the minimum threshold for any beam (default, 5000) */ 
+// int nuphase_set_min_threshold(nuphase_dev_t *d, uint32_t min_threshold); 
 
 /* Set the trigger polarization */
 int nuphase_set_trigger_polarization(nuphase_dev_t* d, nuphase_trigger_polarization_t pol);

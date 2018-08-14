@@ -1,4 +1,3 @@
-
 #include "nuphasedaq.h" 
 #include <linux/spi/spidev.h>
 #include <sys/types.h>
@@ -18,13 +17,13 @@
 #include <endian.h>
 #include "bbb_gpio.h" 
 
-#define NP_ADDRESS_MAX 128 
-#define NP_SPI_BYTES  NP_WORD_SIZE
+#define NP_ADDRESS_MAX 256
+#define NP_SPI_BYTES NP_WORD_SIZE
 #define NP_NUM_MODE 4
-#define NP_NUM_REGISTER 128
+#define NP_NUM_REGISTER 256
 #define BUF_MASK 0xf
 #define MAX_PRETRIGGER 8 
-#define BOARD_CLOCK_HZ 1500000000/16 
+#define BOARD_CLOCK_HZ 500000000/16
 
 // master
 #define NBD(d) (1)
@@ -34,15 +33,15 @@
 
 #define SPI_CAST  (uintptr_t) 
 
-#define NP_DELAY_USECS 0
-#define NP_CS_CHANGE 0
+#define NP_DELAY_USECS 3
+#define NP_CS_CHANGE 1
 
 #define SPI_CLOCK 20000000
 //#define SPI_CLOCK 1000000
 
 #define MAX_XFERS 511
 
-//#define DEBUG_PRINTOUTS 1 
+/* #define DEBUG_PRINTOUTS 1  */
 
 //register map TODO
 typedef enum
@@ -102,7 +101,7 @@ typedef enum
   REG_SET_READ_REG       = 0x6d, 
   REG_RESET_COUNTER      = 0x7e, 
   REG_RESET_ALL          = 0x7f,
-  REG_THRESHOLDS         = 0x80 // add the threshold to this to get the right register
+  REG_THRESHOLDS         = 0x81 // add the threshold to this to get the right register
 
 } nuphase_register_t; 
 
@@ -144,7 +143,7 @@ struct nuphase_dev
   uint8_t next_read_buffer; //what buffer to read next 
   uint8_t hardware_next; // what buffer the hardware things we should read next 
 
-  uint32_t min_threshold; 
+  /* uint32_t min_threshold;  */
   uint16_t poll_interval; 
   int spi_clock; 
   int cs_change; 
@@ -589,7 +588,7 @@ int nuphase_read_register(nuphase_dev_t * d, uint8_t address, uint8_t *result, n
 {
 
   int ret; 
-  if (address > NP_ADDRESS_MAX) return -1; 
+  /* if (address >= NP_NUM_REGISTER) return -1;   */
   USING(d); 
   ret =  append_read_register(d,which, address,result); 
   ret += buffer_send(d,which); 
@@ -708,7 +707,7 @@ nuphase_dev_t * nuphase_open(const char * devicename_master,
   }
 
   //make sure sync is off 
-  do_write(fd[0], buf_sync_off); 
+  if (fd[1]) do_write(fd[0], buf_sync_off); 
 
 
 
@@ -730,7 +729,7 @@ nuphase_dev_t * nuphase_open(const char * devicename_master,
   dev->current_mode[0] = -1; 
   dev->current_mode[1] = -1; 
 
-  dev->min_threshold = 5000; 
+  /* dev->min_threshold = 5000;  */
 
   //Configure the SPI protocol 
   uint8_t mode = SPI_MODE_0;  //we could change the chip select here too 
@@ -1014,7 +1013,7 @@ nuphase_buffer_mask_t nuphase_check_buffers(nuphase_dev_t * d, uint8_t * next, n
 
 int nuphase_set_pretrigger(nuphase_dev_t * d, uint8_t pretrigger)
 {
-  uint8_t pretrigger_buf[] = { REG_PRETRIGGER, 0, 0, pretrigger & 0x7}; 
+  uint8_t pretrigger_buf[] = { REG_PRETRIGGER, 0, 0, pretrigger & 0xf};
   int ret = synchronized_command(d, pretrigger_buf,0,0,0); 
   if (!ret) d->pretrigger = pretrigger; 
   return ret; 
@@ -1091,12 +1090,13 @@ int nuphase_set_thresholds(nuphase_dev_t *d, const uint32_t * trigger_thresholds
 #ifdef CHEAT_READ_THRESHOLDS
     d->cheat_thresholds[i] = trigger_thresholds[i]; 
 #endif
-    if (dont & (1 << i)) continue; 
-    int threshold = trigger_thresholds[i] < d->min_threshold ? d->min_threshold: trigger_thresholds[i]; 
+    /* if (dont & (1 << i)) continue; */
+    (void) dont;
+    int threshold = trigger_thresholds[i]; // < d->min_threshold ? d->min_threshold: trigger_thresholds[i];
     threshold = threshold <= 0xfffff ?  threshold : 0xfffff;
     thresholds_buf[i][0]= REG_THRESHOLDS+i ;
     thresholds_buf[i][1]= (threshold >> 16 ) & 0xf;
-    thresholds_buf[i][2]= (threshold >> 8) & 0xff; 
+    thresholds_buf[i][2]= (threshold >> 8) & 0xff;
     thresholds_buf[i][3]= threshold & 0xff;
     ret += buffer_append (d,MASTER,thresholds_buf[i],0); 
   }
@@ -1133,6 +1133,7 @@ int nuphase_get_thresholds(nuphase_dev_t *d, uint32_t * thresholds)
 
   if (ret) 
   {
+    fprintf(stderr,  "%s! Got return %d, setting thresholds to zero!\n", __PRETTY_FUNCTION__, ret);
     memset(thresholds, 0,NP_NUM_BEAMS * sizeof(*thresholds)); 
   }
   else
@@ -1311,7 +1312,7 @@ nuphase_trigger_enable_t nuphase_get_trigger_enables(nuphase_dev_t * d, nuphase_
 {
   uint8_t trigger_enable_buf[NP_SPI_BYTES]; 
   nuphase_read_register(d,REG_TRIG_ENABLE, trigger_enable_buf, w); 
-//  printf("Got trigger enables: [0x%x 0x%x 0x%x 0x%x]\n", trigger_enable_buf[0], trigger_enable_buf[1], trigger_enable_buf[2], trigger_enable_buf[3]); 
+  printf("Got trigger enables: [0x%x 0x%x 0x%x 0x%x]\n", trigger_enable_buf[0], trigger_enable_buf[1], trigger_enable_buf[2], trigger_enable_buf[3]); 
   nuphase_trigger_enable_t ans; 
   ans.enable_beamforming = trigger_enable_buf[3] & 1; 
   ans.enable_beam8 = trigger_enable_buf[2] & 1; 
@@ -1351,13 +1352,14 @@ nuphase_trigger_polarization_t nuphase_get_trigger_polarization(nuphase_dev_t * 
 
 int nuphase_phased_trigger_readout(nuphase_dev_t * d, int phased) 
 {
-    uint8_t trigger_buf[NP_SPI_BYTES] = {REG_PHASED_TRIGGER, 0, 0, phased & 1}; 
-    USING(d); 
-    if (d->fd[1]) do_write(d->fd[SLAVE], trigger_buf); 
-    do_write(d->fd[MASTER], trigger_buf); 
-    DONE(d); 
 
-    return 0; 
+  uint8_t trigger_buf[NP_SPI_BYTES] = {REG_PHASED_TRIGGER, 0, 0, phased & 1}; 
+  USING(d); 
+  if (d->fd[SLAVE]) do_write(d->fd[SLAVE], trigger_buf); 
+  do_write(d->fd[MASTER], trigger_buf); 
+  DONE(d); 
+  
+  return 0; 
 
 }
 
@@ -1523,9 +1525,9 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
       trig_time[1] = be32toh(trig_time[1]) & 0xffffff; 
 
 #ifdef DEBUG_PRINTOUTS
-      printf("Raw event_counter: %x %x\n", event_counter[0], event_counter[1]) ;
-      printf("Raw trig_counter: %x %x\n", trig_counter[0], trig_counter[1]) ;
-      printf("Raw trig_time: %x %x \n", trig_time[0], trig_time[1]) ;
+//      printf("Raw event_counter: %x %x\n", event_counter[0], event_counter[1]) ;
+//      printf("Raw trig_counter: %x %x\n", trig_counter[0], trig_counter[1]) ;
+//      printf("Raw trig_time: %x %x \n", trig_time[0], trig_time[1]) ;
 #endif 
 
 
@@ -1757,33 +1759,56 @@ int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * st, nuphase_which_b
   if (ret) return ret; 
   st->deadtime = 0; //TODO 
 
-
-  for (i = 0; i < N_SCALER_REGISTERS; i++) 
-  {
+  uint16_t scaler_values[NP_NUM_SCALERS*(1+NP_NUM_BEAMS)];
+  int sv_ind = 0;
+  for(i=0; i < N_SCALER_REGISTERS; i++){
     uint16_t first = ((uint16_t)scaler_registers[i][3])  |  (((uint16_t) scaler_registers[i][2] & 0xf ) << 8); 
     uint16_t second =((uint16_t)(scaler_registers[i][2] >> 4)) |  (((uint16_t) scaler_registers[i][1] ) << 4); 
-//    printf("%d %u %u\n", i, first, second); 
-
-    int which_scaler = i / ((1 + NP_NUM_BEAMS)/2);
-    int which_channel = i % (( 1 + NP_NUM_BEAMS)/2);
-
-    if (which_channel == 0) 
-    {
-      st->global_scalers[which_scaler] = first; 
-      st->beam_scalers[which_scaler][0]= second; 
+    scaler_values[sv_ind] = first;
+    if(sv_ind + 1 < NP_NUM_SCALERS*(1+NP_NUM_BEAMS)){
+      scaler_values[sv_ind+1] = second;
     }
-    else
-    {
-      st->beam_scalers[which_scaler][2*which_channel-1]= first;
+    sv_ind += 2;
+  }
 
-      // since the final register is padded with zeros because
-      // there's an odd number of (1+beams), we need to not
-      // write this padding past the end fo the beam_scalers array
-      if(2*which_channel < NP_NUM_BEAMS){
-	st->beam_scalers[which_scaler][2*which_channel] = second;
-      }
+  for(i = 0; i < NP_NUM_SCALERS*(1+NP_NUM_BEAMS); i++){
+    int which_scaler = i / (1+NP_NUM_BEAMS);
+    int which_channel = i % (1+NP_NUM_BEAMS);
+
+    if(which_channel==0){
+      st->global_scalers[which_scaler] = scaler_values[i];
+    }
+    else {
+      st->beam_scalers[which_scaler][which_channel-1] = scaler_values[i];
     }
   }
+
+/*   for (i = 0; i < N_SCALER_REGISTERS; i++)  */
+/*   { */
+/*     uint16_t first = ((uint16_t)scaler_registers[i][3])  |  (((uint16_t) scaler_registers[i][2] & 0xf ) << 8);  */
+/*     uint16_t second =((uint16_t)(scaler_registers[i][2] >> 4)) |  (((uint16_t) scaler_registers[i][1] ) << 4);  */
+/* //    printf("%d %u %u\n", i, first, second);  */
+
+/*     int which_scaler = i / ((1 + NP_NUM_BEAMS)/2); */
+/*     int which_channel = i % (( 1 + NP_NUM_BEAMS)/2); */
+
+/*     if (which_channel == 0)  */
+/*     { */
+/*       st->global_scalers[which_scaler] = first;  */
+/*       st->beam_scalers[which_scaler][0]= second;  */
+/*     } */
+/*     else */
+/*     { */
+/*       st->beam_scalers[which_scaler][2*which_channel-1]= first; */
+
+/*       // since the final register is padded with zeros because */
+/*       // there's an odd number of (1+beams), we need to not */
+/*       // write this padding past the end fo the beam_scalers array */
+/*       if(2*which_channel < NP_NUM_BEAMS){ */
+/* 	st->beam_scalers[which_scaler][2*which_channel] = second; */
+/*       } */
+/*     } */
+/*   } */
 
   st->latched_pps_time = latched_pps[0][3]; 
   st->latched_pps_time |= ((uint64_t) latched_pps[0][2]) << 8; 
@@ -2210,10 +2235,10 @@ int nuphase_get_ext_trigger_in(nuphase_dev_t * d, nuphase_ext_input_config_t * c
 int nuphase_enable_verification_mode(nuphase_dev_t * d, int mode) 
 {
   uint8_t buf[NP_SPI_BYTES] = { REG_VERIFICATION_MODE,0,0, mode & 1}; 
-  USING(d); 
+  USING(d);
   int written = do_write(d->fd[MASTER], buf); 
   DONE(d); 
-  return written != NP_SPI_BYTES; 
+  return written != NP_SPI_BYTES;
 }
 
 int nuphase_query_verification_mode(nuphase_dev_t * d) 
@@ -2273,8 +2298,8 @@ int nuphase_get_trigger_delays(nuphase_dev_t *d, uint8_t * delays)
   return  ret; 
 }
 
-int nuphase_set_min_threshold(nuphase_dev_t * d, uint32_t min) 
-{
-  d->min_threshold = min; 
-  return 0; 
-}
+/* int nuphase_set_min_threshold(nuphase_dev_t * d, uint32_t min)  */
+/* { */
+/*   d->min_threshold = min;  */
+/*   return 0;  */
+/* } */
