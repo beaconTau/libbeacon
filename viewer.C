@@ -36,7 +36,7 @@ void viewer(const char * hdfile, const char * evfile, int i = 0)
 
   nuphase_header_print(stdout, &hd); 
   
-  for (int ibd = 0; ibd < 2; ibd++)
+  for (int ibd = 0; ibd < 1; ibd++)
   {
     if (ev.board_id[ibd])
     {
