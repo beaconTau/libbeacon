@@ -2333,3 +2333,36 @@ int nuphase_get_trigger_path_low_pass(nuphase_dev_t * d)
 
   return buf[3] &1; 
 }
+
+
+int nuphase_set_dynamic_masking(nuphase_dev_t * d, int enable, uint8_t threshold, uint16_t holdoff) 
+{
+  int ret; 
+  uint8_t buf0[NP_SPI_BYTES] = { REG_DYN_MASK, 0, enable & 1, threshold }; 
+  uint8_t buf1[NP_SPI_BYTES] = { REG_DYN_HOLDOFF, 0, holdoff >> 8 , holdoff & 0xff }; 
+  USING(d); 
+  buffer_append(d, MASTER, buf0,0); 
+  buffer_append(d, MASTER, buf1,0); 
+  ret = buffer_send(d, MASTER); 
+  DONE(d); 
+  return ret; 
+}
+
+int nuphase_get_dynamic_masking(nuphase_dev_t * d, int * enable, uint8_t * threshold, uint16_t * holdoff) 
+{
+  int ret; 
+  uint8_t buf0[NP_SPI_BYTES];
+  uint8_t buf1[NP_SPI_BYTES]; 
+  USING(d); 
+  append_read_register(d, MASTER, REG_DYN_MASK,buf0); 
+  append_read_register(d, MASTER, REG_DYN_HOLDOFF,buf1); 
+  ret = buffer_send(d, MASTER); 
+  DONE(d); 
+  if (ret) return ret; 
+
+  *enable = buf0[2] &1; 
+  *threshold = buf0[3]; 
+  *holdoff =  ((uint16_t) buf1[3]) | (((uint16_t)buf1[2]) << 8); 
+  return 0; 
+}
+
