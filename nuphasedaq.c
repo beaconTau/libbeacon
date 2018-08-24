@@ -33,8 +33,8 @@
 
 #define SPI_CAST  (uintptr_t) 
 
-#define NP_DELAY_USECS 3
-#define NP_CS_CHANGE 1
+#define NP_DELAY_USECS 0
+#define NP_CS_CHANGE 0
 
 #define SPI_CLOCK 20000000
 //#define SPI_CLOCK 1000000
