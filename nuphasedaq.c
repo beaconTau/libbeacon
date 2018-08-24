@@ -65,6 +65,9 @@ typedef enum
   REG_TRIG_MASKS         = 0x12, // bits 22-15 : channel mask ; bits 14-0 : beam mask
   REG_LAST_BEAM          = 0x14, 
   REG_TRIG_BEAM_POWER    = 0x15, 
+  REG_PPS_COUNTER        = 0x16, 
+  REG_HD_DYN_MASK        = 0x17, 
+  REG_ST_DYN_MASK        = 0x22, 
   REG_CHUNK              = 0x23, //which 32-bit chunk  + i 
   REG_SYNC               = 0x27, 
   REG_UPDATE_SCALERS     = 0x28, 
@@ -1505,6 +1508,8 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
         CHK(append_read_register(d,ibd,REG_TRIG_MASKS,(uint8_t*) &tmask)) 
         CHK(append_read_register(d,ibd,REG_LAST_BEAM, (uint8_t*) &last_beam)) 
         CHK(append_read_register(d,ibd, REG_TRIG_BEAM_POWER, (uint8_t*)  &hd[iout]->beam_power)); 
+        CHK(append_read_register(d,ibd, REG_PPS_COUNTER, (uint8_t*)  &hd[iout]->pps_counter)); 
+        CHK(append_read_register(d,ibd, REG_HD_DYN_MASK, (uint8_t*)  &hd[iout]->dynamic_beam_mask)); 
       }
 
      //flush the metadata .  we could get slightly faster throughput by storing metadata 
@@ -1581,6 +1586,8 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
         hd[iout]->triggered_beams = last_beam & 0xffffff; 
         hd[iout]->beam_mask = tmask & 0xffffff;  
         hd[iout]->beam_power = be32toh(hd[iout]->beam_power) & 0xffffff; 
+        hd[iout]->pps_counter = be32toh(hd[iout]->pps_counter) & 0xffffff; 
+        hd[iout]->dynamic_beam_mask = be32toh(hd[iout]->dynamic_beam_mask) & 0xffffff; 
         hd[iout]->buffer_number = hwbuf; 
         hd[iout]->gate_flag = (tmask >> 23) & 1; 
         hd[iout]->buffer_mask = mask; //this is the current buffer mask
@@ -1752,6 +1759,9 @@ int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * st, nuphase_which_b
   
   ret += append_read_register(d,which, REG_LATCHED_PPS_LOW, latched_pps[0]); 
   ret += append_read_register(d,which, REG_LATCHED_PPS_HIGH, latched_pps[1]); 
+
+  //also, dynamic beam mask value 
+  ret += append_read_register(d,which, REG_ST_DYN_MASK, (uint8_t*) &st->dynamic_beam_mask); 
   
   clock_gettime(CLOCK_REALTIME, &now); 
   ret+= buffer_send(d,which); 
@@ -1761,6 +1771,8 @@ int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * st, nuphase_which_b
 
   if (ret) return ret; 
   st->deadtime = 0; //TODO 
+
+  st->dynamic_beam_mask = be32toh(st->dynamic_beam_mask) & 0xffffff;
 
   uint16_t scaler_values[NP_NUM_SCALERS*(1+NP_NUM_BEAMS)];
   int sv_ind = 0;
