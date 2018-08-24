@@ -99,6 +99,9 @@ typedef enum
   REG_PHASED_TRIGGER     = 0x54, 
   REG_VERIFICATION_MODE  = 0x55, 
   REG_SET_READ_REG       = 0x6d, 
+  REG_TRIGGER_LOWPASS    = 0x5a, 
+  REG_DYN_MASK           = 0x5d, 
+  REG_DYN_HOLDOFF        = 0x5e, 
   REG_RESET_COUNTER      = 0x7e, 
   REG_RESET_ALL          = 0x7f,
   REG_THRESHOLDS         = 0x81 // add the threshold to this to get the right register
@@ -2303,3 +2306,30 @@ int nuphase_get_trigger_delays(nuphase_dev_t *d, uint8_t * delays)
 /*   d->min_threshold = min;  */
 /*   return 0;  */
 /* } */
+
+
+int nuphase_set_trigger_path_low_pass(nuphase_dev_t * d, int on) 
+{
+
+  int ret; 
+  uint8_t buf[NP_SPI_BYTES] = { REG_TRIGGER_LOWPASS, 0, 0, on & 1 }; 
+  USING(d); 
+  ret = do_write(d->fd[0], buf); 
+  DONE(d); 
+  return ret == NP_SPI_BYTES ? 0 : 1; 
+}
+
+int nuphase_get_trigger_path_low_pass(nuphase_dev_t * d) 
+{
+
+  int ret; 
+  uint8_t buf[NP_SPI_BYTES]; 
+  ret = nuphase_read_register(d, REG_TRIGGER_LOWPASS, buf, MASTER); 
+  
+  if (ret) 
+  {
+    return -1; 
+  }
+
+  return buf[3] &1; 
+}
