@@ -652,11 +652,11 @@ int nuphase_status_print(FILE *f, const nuphase_status_t *st)
   fprintf(f,"NuPhase Board 0x%x Status (read at %s.%09d UTC)\n", st->board_id, timstr, st->readout_time_ns); 
   fprintf(f,"latched pps: %"PRIu64"  \n", st->latched_pps_time); 
 
-  fprintf(f,"\t which \t 0.1 Hz, gated 0.1Hz, 1 Hz, threshold\n"); 
+  fprintf(f,"\t which \t 0.1 Hz, gated 0.1Hz, 1 Hz, threshold, dynamically_masked? \n"); 
   fprintf(f,"\tGLOBAL: \t%u \t%u \t%u\n", st->global_scalers[SCALER_SLOW], st->global_scalers[SCALER_SLOW_GATED], st->global_scalers[SCALER_FAST]); 
   for (i = 0; i < NP_NUM_BEAMS; i++)
   {
-    fprintf(f,"\tBEAM %d: \t%u \t%u \t%u \t%u \n",i, st->beam_scalers[SCALER_SLOW][i], st->beam_scalers[SCALER_SLOW_GATED][i], st->beam_scalers[SCALER_FAST][i], st->trigger_thresholds[i] ); 
+    fprintf(f,"\tBEAM %d: \t%u \t%u \t%u \t%u\t %c \n",i, st->beam_scalers[SCALER_SLOW][i], st->beam_scalers[SCALER_SLOW_GATED][i], st->beam_scalers[SCALER_FAST][i], st->trigger_thresholds[i], st->dynamic_beam_mask & (1 <<i) ? 'X' :' '); 
   }
   return 0; 
 }
@@ -720,6 +720,7 @@ int nuphase_header_print(FILE *f, const nuphase_header_t *hd)
   }
 
   fprintf(f,"\n\ttrig_channel_mask: %x\n", hd->channel_mask); 
+  fprintf(f,"\n\tdynamic_mask: %x\n", hd->dynamic_beam_mask); 
   fprintf(f,"\tchannel_read_mask: \n"); 
   for (i = 0; i < NP_MAX_BOARDS; i++)
   {
