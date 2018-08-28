@@ -227,6 +227,7 @@ static int nuphase_header_generic_read(struct generic_file gf, nuphase_header_t 
       cksum = stupid_fletcher16(wanted, h); 
       break; 
     default: 
+     fprintf(stderr,"unknown version %d\n", start.ver); 
     return NP_ERR_BAD_VERSION; 
   }
 
@@ -459,16 +460,19 @@ static int nuphase_status_generic_read(struct generic_file gf, nuphase_status_t 
       cksum = stupid_fletcher16(wanted, st); 
       break; 
     default: 
-    return NP_ERR_BAD_VERSION; 
+      fprintf(stderr,"unknown version %d\n", start.ver); 
+      return NP_ERR_BAD_VERSION; 
   }
 
   if (wanted!=got)
   {
+    printf("Wanted %d, got %d\n", wanted,got); 
     return NP_ERR_NOT_ENOUGH_BYTES; 
   }
 
   if (cksum != start.cksum) 
   {
+    printf("Wanted %d, got %d\n", cksum,start.cksum); 
     return NP_ERR_CHECKSUM_FAILED; 
   }
 
