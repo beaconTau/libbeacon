@@ -430,4 +430,17 @@ int nuphase_set_trigger_polarization(nuphase_dev_t* d, nuphase_trigger_polarizat
 nuphase_trigger_polarization_t nuphase_get_trigger_polarization(nuphase_dev_t* d);
 
 
+/** Set the trigger-path low pass filter */ 
+int nuphase_set_trigger_path_low_pass(nuphase_dev_t *d, int on); 
+
+/** get the trigger_path low pass, 0 = off, 1 = on, otherwise some error */ 
+int nuphase_get_trigger_path_low_pass(nuphase_dev_t *d); 
+
+/** Set the dynamic masking options */ 
+int nuphase_set_dynamic_masking(nuphase_dev_t *d, int enable, uint8_t threshold, uint16_t holdoff); 
+
+/** retrieve the dynamic masking options */ 
+int nuphase_get_dynamic_masking(nuphase_dev_t *d, int * enable, uint8_t * threshold, uint16_t * holdoff); 
+
+
 #endif

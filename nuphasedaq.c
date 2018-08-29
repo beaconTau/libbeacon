@@ -65,6 +65,9 @@ typedef enum
   REG_TRIG_MASKS         = 0x12, // bits 22-15 : channel mask ; bits 14-0 : beam mask
   REG_LAST_BEAM          = 0x14, 
   REG_TRIG_BEAM_POWER    = 0x15, 
+  REG_PPS_COUNTER        = 0x16, 
+  REG_HD_DYN_MASK        = 0x17, 
+  REG_ST_DYN_MASK        = 0x22, 
   REG_CHUNK              = 0x23, //which 32-bit chunk  + i 
   REG_SYNC               = 0x27, 
   REG_UPDATE_SCALERS     = 0x28, 
@@ -99,9 +102,12 @@ typedef enum
   REG_PHASED_TRIGGER     = 0x54, 
   REG_VERIFICATION_MODE  = 0x55, 
   REG_SET_READ_REG       = 0x6d, 
+  REG_TRIGGER_LOWPASS    = 0x5a, 
+  REG_DYN_MASK           = 0x5d, 
+  REG_DYN_HOLDOFF        = 0x5e, 
   REG_RESET_COUNTER      = 0x7e, 
   REG_RESET_ALL          = 0x7f,
-  REG_THRESHOLDS         = 0x80 // add the threshold to this to get the right register
+  REG_THRESHOLDS         = 0x81 // add the threshold to this to get the right register
 
 } nuphase_register_t; 
 
@@ -707,7 +713,7 @@ nuphase_dev_t * nuphase_open(const char * devicename_master,
   }
 
   //make sure sync is off 
-  do_write(fd[0], buf_sync_off); 
+  if (fd[1]) do_write(fd[0], buf_sync_off); 
 
 
 
@@ -1502,6 +1508,8 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
         CHK(append_read_register(d,ibd,REG_TRIG_MASKS,(uint8_t*) &tmask)) 
         CHK(append_read_register(d,ibd,REG_LAST_BEAM, (uint8_t*) &last_beam)) 
         CHK(append_read_register(d,ibd, REG_TRIG_BEAM_POWER, (uint8_t*)  &hd[iout]->beam_power)); 
+        CHK(append_read_register(d,ibd, REG_PPS_COUNTER, (uint8_t*)  &hd[iout]->pps_counter)); 
+        CHK(append_read_register(d,ibd, REG_HD_DYN_MASK, (uint8_t*)  &hd[iout]->dynamic_beam_mask)); 
       }
 
      //flush the metadata .  we could get slightly faster throughput by storing metadata 
@@ -1525,9 +1533,9 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
       trig_time[1] = be32toh(trig_time[1]) & 0xffffff; 
 
 #ifdef DEBUG_PRINTOUTS
-      printf("Raw event_counter: %x %x\n", event_counter[0], event_counter[1]) ;
-      printf("Raw trig_counter: %x %x\n", trig_counter[0], trig_counter[1]) ;
-      printf("Raw trig_time: %x %x \n", trig_time[0], trig_time[1]) ;
+//      printf("Raw event_counter: %x %x\n", event_counter[0], event_counter[1]) ;
+//      printf("Raw trig_counter: %x %x\n", trig_counter[0], trig_counter[1]) ;
+//      printf("Raw trig_time: %x %x \n", trig_time[0], trig_time[1]) ;
 #endif 
 
 
@@ -1578,6 +1586,8 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
         hd[iout]->triggered_beams = last_beam & 0xffffff; 
         hd[iout]->beam_mask = tmask & 0xffffff;  
         hd[iout]->beam_power = be32toh(hd[iout]->beam_power) & 0xffffff; 
+        hd[iout]->pps_counter = be32toh(hd[iout]->pps_counter) & 0xffffff; 
+        hd[iout]->dynamic_beam_mask = be32toh(hd[iout]->dynamic_beam_mask) & 0xffffff; 
         hd[iout]->buffer_number = hwbuf; 
         hd[iout]->gate_flag = (tmask >> 23) & 1; 
         hd[iout]->buffer_mask = mask; //this is the current buffer mask
@@ -1749,6 +1759,9 @@ int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * st, nuphase_which_b
   
   ret += append_read_register(d,which, REG_LATCHED_PPS_LOW, latched_pps[0]); 
   ret += append_read_register(d,which, REG_LATCHED_PPS_HIGH, latched_pps[1]); 
+
+  //also, dynamic beam mask value 
+  ret += append_read_register(d,which, REG_ST_DYN_MASK, (uint8_t*) &st->dynamic_beam_mask); 
   
   clock_gettime(CLOCK_REALTIME, &now); 
   ret+= buffer_send(d,which); 
@@ -1758,6 +1771,8 @@ int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * st, nuphase_which_b
 
   if (ret) return ret; 
   st->deadtime = 0; //TODO 
+
+  st->dynamic_beam_mask = be32toh(st->dynamic_beam_mask) & 0xffffff;
 
   uint16_t scaler_values[NP_NUM_SCALERS*(1+NP_NUM_BEAMS)];
   int sv_ind = 0;
@@ -2303,3 +2318,63 @@ int nuphase_get_trigger_delays(nuphase_dev_t *d, uint8_t * delays)
 /*   d->min_threshold = min;  */
 /*   return 0;  */
 /* } */
+
+
+int nuphase_set_trigger_path_low_pass(nuphase_dev_t * d, int on) 
+{
+
+  int ret; 
+  uint8_t buf[NP_SPI_BYTES] = { REG_TRIGGER_LOWPASS, 0, 0, on & 1 }; 
+  USING(d); 
+  ret = do_write(d->fd[0], buf); 
+  DONE(d); 
+  return ret == NP_SPI_BYTES ? 0 : 1; 
+}
+
+int nuphase_get_trigger_path_low_pass(nuphase_dev_t * d) 
+{
+
+  int ret; 
+  uint8_t buf[NP_SPI_BYTES]; 
+  ret = nuphase_read_register(d, REG_TRIGGER_LOWPASS, buf, MASTER); 
+  
+  if (ret) 
+  {
+    return -1; 
+  }
+
+  return buf[3] &1; 
+}
+
+
+int nuphase_set_dynamic_masking(nuphase_dev_t * d, int enable, uint8_t threshold, uint16_t holdoff) 
+{
+  int ret; 
+  uint8_t buf0[NP_SPI_BYTES] = { REG_DYN_MASK, 0, enable & 1, threshold }; 
+  uint8_t buf1[NP_SPI_BYTES] = { REG_DYN_HOLDOFF, 0, holdoff >> 8 , holdoff & 0xff }; 
+  USING(d); 
+  buffer_append(d, MASTER, buf0,0); 
+  buffer_append(d, MASTER, buf1,0); 
+  ret = buffer_send(d, MASTER); 
+  DONE(d); 
+  return ret; 
+}
+
+int nuphase_get_dynamic_masking(nuphase_dev_t * d, int * enable, uint8_t * threshold, uint16_t * holdoff) 
+{
+  int ret; 
+  uint8_t buf0[NP_SPI_BYTES];
+  uint8_t buf1[NP_SPI_BYTES]; 
+  USING(d); 
+  append_read_register(d, MASTER, REG_DYN_MASK,buf0); 
+  append_read_register(d, MASTER, REG_DYN_HOLDOFF,buf1); 
+  ret = buffer_send(d, MASTER); 
+  DONE(d); 
+  if (ret) return ret; 
+
+  *enable = buf0[2] &1; 
+  *threshold = buf0[3]; 
+  *holdoff =  ((uint16_t) buf1[3]) | (((uint16_t)buf1[2]) << 8); 
+  return 0; 
+}
+

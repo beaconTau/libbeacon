@@ -131,6 +131,8 @@ typedef struct nuphase_header
   nuphase_trigger_polarization_t trig_pol;       //!< The trigger polarization
   uint8_t calpulser;                             //!< Was the calpulser on? 
   uint8_t sync_problem;                          //!< Various sync problems. TODO convert to enum 
+  uint32_t pps_counter;                          //!< value of the pps timer at the time of the event
+  uint32_t dynamic_beam_mask;                    //!< the automatic beam masker 
 } nuphase_header_t; 
 xg
 /**nuphase event body.
@@ -171,6 +173,7 @@ typedef struct nuphase_status
   uint32_t trigger_thresholds[NP_NUM_BEAMS]; //!< The trigger thresholds  
   uint64_t latched_pps_time;      //!< A timestamp corresponding to a pps time 
   uint8_t board_id;               //!< The board number assigned at startup. 
+  uint32_t dynamic_beam_mask;     //!<  the dynamic beam mask 
 
 } nuphase_status_t; 
 
