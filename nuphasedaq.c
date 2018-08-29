@@ -62,11 +62,12 @@ typedef enum
   REG_TRIG_TIME_HIGH     = 0xf, 
   REG_DEADTIME           = 0x10, 
   REG_TRIG_INFO          = 0x11, //bits 23-22 : event buffer ; bit 21: calpulse, bits 19-17: pretrig window,  bits16-15: trig type ; bits 14-4: 0: bits 3-0: value of REG_TRIG_POLARIZATION
-  REG_TRIG_MASKS         = 0x12, // bits 22-15 : channel mask ; bits 14-0 : beam mask
+  REG_CH_MASKS           = 0x12, // bits 22-15 : channel mask ; bits 14-0 : beam mask
   REG_LAST_BEAM          = 0x14, 
   REG_TRIG_BEAM_POWER    = 0x15, 
   REG_PPS_COUNTER        = 0x16, 
   REG_HD_DYN_MASK        = 0x17, 
+  REG_USER_MASK          = 0x18,  
   REG_ST_DYN_MASK        = 0x22, 
   REG_CHUNK              = 0x23, //which 32-bit chunk  + i 
   REG_SYNC               = 0x27, 
@@ -1505,7 +1506,8 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
 
       if (ibd == MASTER)  // these don't make sense for a slave
       {
-        CHK(append_read_register(d,ibd,REG_TRIG_MASKS,(uint8_t*) &tmask)) 
+        CHK(append_read_register(d,ibd,REG_CH_MASKS,(uint8_t*) &tmask)) 
+        CHK(append_read_register(d,ibd,REG_USER_MASK,(uint8_t*) &hd[iout]->beam_mask)) 
         CHK(append_read_register(d,ibd,REG_LAST_BEAM, (uint8_t*) &last_beam)) 
         CHK(append_read_register(d,ibd, REG_TRIG_BEAM_POWER, (uint8_t*)  &hd[iout]->beam_power)); 
         CHK(append_read_register(d,ibd, REG_PPS_COUNTER, (uint8_t*)  &hd[iout]->pps_counter)); 
@@ -1521,7 +1523,6 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
 
 #ifdef DEBUG_PRINTOUTS
       printf("Raw tinfo: %x\n", tinfo) ;
-      printf("Raw tmask: %x\n", tmask) ;
 #endif 
       
       // check the event counter
@@ -1584,7 +1585,7 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
         }
 
         hd[iout]->triggered_beams = last_beam & 0xffffff; 
-        hd[iout]->beam_mask = tmask & 0xffffff;  
+        hd[iout]->beam_mask = be32toh(hd[iout]->beam_mask) & 0xffffff; 
         hd[iout]->beam_power = be32toh(hd[iout]->beam_power) & 0xffffff; 
         hd[iout]->pps_counter = be32toh(hd[iout]->pps_counter) & 0xffffff; 
         hd[iout]->dynamic_beam_mask = be32toh(hd[iout]->dynamic_beam_mask) & 0xffffff; 
