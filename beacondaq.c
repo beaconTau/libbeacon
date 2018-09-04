@@ -1,4 +1,4 @@
-#include "nuphasedaq.h" 
+#include "beacondaq.h" 
 #include <linux/spi/spidev.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -17,10 +17,10 @@
 #include <endian.h>
 #include "bbb_gpio.h" 
 
-#define NP_ADDRESS_MAX 256
-#define NP_SPI_BYTES NP_WORD_SIZE
-#define NP_NUM_MODE 4
-#define NP_NUM_REGISTER 256
+#define BN_ADDRESS_MAX 256
+#define BN_SPI_BYTES BN_WORD_SIZE
+#define BN_NUM_MODE 4
+#define BN_NUM_REGISTER 256
 #define BUF_MASK 0xf
 #define MAX_PRETRIGGER 8 
 #define BOARD_CLOCK_HZ 500000000/16
@@ -33,8 +33,8 @@
 
 #define SPI_CAST  (uintptr_t) 
 
-#define NP_DELAY_USECS 0
-#define NP_CS_CHANGE 0
+#define BN_DELAY_USECS 0
+#define BN_CS_CHANGE 0
 
 #define SPI_CLOCK 20000000
 //#define SPI_CLOCK 1000000
@@ -110,7 +110,7 @@ typedef enum
   REG_RESET_ALL          = 0x7f,
   REG_THRESHOLDS         = 0x81 // add the threshold to this to get the right register
 
-} nuphase_register_t; 
+} beacon_register_t; 
 
 
 void easy_break_point()
@@ -127,11 +127,11 @@ typedef enum
   MODE_WAVEFORMS=1,
   MODE_BEAMS=2,
   MODE_POWERSUM=3
-} nuphase_readout_mode_t; 
+} beacon_readout_mode_t; 
 
-//TODO . In general it would be better to write everything so it's NP_NUM_BOARDS agnostic, but whatever
+//TODO . In general it would be better to write everything so it's BN_NUM_BOARDS agnostic, but whatever
 //leave these at 2 so we can avoid touching most of the code for now!!!  
-struct nuphase_dev
+struct beacon_dev
 {
   const char * device_name[2]; //master,slave
   int fd[2];  //master, slave
@@ -159,8 +159,8 @@ struct nuphase_dev
   uint8_t pretrigger; 
 
   // store event / header used for calibration here in case we want it later? 
-  nuphase_event_t calib_ev;
-  nuphase_header_t calib_hd;
+  beacon_event_t calib_ev;
+  beacon_header_t calib_hd;
 
   //spi buffer 
   struct spi_ioc_transfer buf[2][MAX_XFERS]; 
@@ -174,7 +174,7 @@ struct nuphase_dev
   bbb_gpio_pin_t * gpio_pin; 
 
 #ifdef CHEAT_READ_THRESHOLDS
- uint32_t cheat_thresholds[NP_NUM_BEAMS]; 
+ uint32_t cheat_thresholds[BN_NUM_BEAMS]; 
 #endif  
 
 
@@ -222,7 +222,7 @@ static int do_xfer(int fd, int n, struct spi_ioc_transfer * xfer)
 
 static int do_write(int fd, const uint8_t * p)
 {
-  int ret = write(fd,p, NP_SPI_BYTES); 
+  int ret = write(fd,p, BN_SPI_BYTES); 
 #ifdef DEBUG_PRINTOUTS
   printf("WRITE(%d): [0x%02x 0x%02x 0x%02x 0x%02x]\n",fd, p[0],p[1],p[2],p[3]); 
 #endif
@@ -231,7 +231,7 @@ static int do_write(int fd, const uint8_t * p)
 
 static int do_read(int fd, uint8_t * p)
 {
-  int ret = read(fd,p, NP_SPI_BYTES); 
+  int ret = read(fd,p, BN_SPI_BYTES); 
 #ifdef DEBUG_PRINTOUTS
   printf("READ(%d): [0x%02x 0x%02x 0x%02x 0x%02x]\n",fd, p[0],p[1],p[2],p[3]); 
 #endif
@@ -240,31 +240,31 @@ static int do_read(int fd, uint8_t * p)
 
 
 
-// here we add 1 to the numerator make this round up since 1 + NP_NUM_BEAMS
-// NP_NUM_SCALERS are odd for 
-#define N_SCALER_REGISTERS  (1 + NP_NUM_SCALERS * (1 + NP_NUM_BEAMS)/2) 
+// here we add 1 to the numerator make this round up since 1 + BN_NUM_BEAMS
+// BN_NUM_SCALERS are odd for 
+#define N_SCALER_REGISTERS  (1 + BN_NUM_SCALERS * (1 + BN_NUM_BEAMS)/2) 
 
 // all possible buffers we might batch
-static uint8_t buf_mode[NP_NUM_MODE][NP_SPI_BYTES];
-static uint8_t buf_set_read_reg[NP_NUM_REGISTER][NP_SPI_BYTES];
-static uint8_t buf_channel[NP_NUM_CHAN][NP_SPI_BYTES];
-static uint8_t buf_buffer[NP_NUM_BUFFER][NP_SPI_BYTES];
-static uint8_t buf_chunk[NP_NUM_CHUNK][NP_SPI_BYTES];
-static uint8_t buf_ram_addr[NP_ADDRESS_MAX][NP_SPI_BYTES];
-static uint8_t buf_clear[1 << NP_NUM_BUFFER][NP_SPI_BYTES];
-static uint8_t buf_reset_buf[NP_SPI_BYTES] = {REG_CLEAR,0,1,0};
-static uint8_t buf_pick_scaler[N_SCALER_REGISTERS][NP_SPI_BYTES]; 
+static uint8_t buf_mode[BN_NUM_MODE][BN_SPI_BYTES];
+static uint8_t buf_set_read_reg[BN_NUM_REGISTER][BN_SPI_BYTES];
+static uint8_t buf_channel[BN_NUM_CHAN][BN_SPI_BYTES];
+static uint8_t buf_buffer[BN_NUM_BUFFER][BN_SPI_BYTES];
+static uint8_t buf_chunk[BN_NUM_CHUNK][BN_SPI_BYTES];
+static uint8_t buf_ram_addr[BN_ADDRESS_MAX][BN_SPI_BYTES];
+static uint8_t buf_clear[1 << BN_NUM_BUFFER][BN_SPI_BYTES];
+static uint8_t buf_reset_buf[BN_SPI_BYTES] = {REG_CLEAR,0,1,0};
+static uint8_t buf_pick_scaler[N_SCALER_REGISTERS][BN_SPI_BYTES]; 
 
-static uint8_t buf_read[NP_SPI_BYTES] __attribute__((unused))= {REG_READ,0,0,0}  ; 
+static uint8_t buf_read[BN_SPI_BYTES] __attribute__((unused))= {REG_READ,0,0,0}  ; 
 
-static uint8_t buf_update_scalers[NP_SPI_BYTES] = {REG_UPDATE_SCALERS,0,0,1} ; 
-static uint8_t buf_sync_on[NP_SPI_BYTES] = {REG_SYNC,0,0,1} ; 
-static uint8_t buf_sync_off[NP_SPI_BYTES] = {REG_SYNC,0,0,0} ; 
-static uint8_t buf_reset_all[NP_SPI_BYTES] = {REG_RESET_ALL,0,0,1}; 
-static uint8_t buf_reset_almost_all[NP_SPI_BYTES] = {REG_RESET_ALL,0,0,2}; 
-static uint8_t buf_reset_counter[NP_SPI_BYTES] = {REG_RESET_COUNTER,0,0,1}; 
-static uint8_t buf_adc_clk_rst[NP_SPI_BYTES] = {REG_ADC_CLK_RST,0,0,0}; 
-static uint8_t buf_apply_attenuation[NP_SPI_BYTES] = {REG_ATTEN_APPLY,0,0,0}; 
+static uint8_t buf_update_scalers[BN_SPI_BYTES] = {REG_UPDATE_SCALERS,0,0,1} ; 
+static uint8_t buf_sync_on[BN_SPI_BYTES] = {REG_SYNC,0,0,1} ; 
+static uint8_t buf_sync_off[BN_SPI_BYTES] = {REG_SYNC,0,0,0} ; 
+static uint8_t buf_reset_all[BN_SPI_BYTES] = {REG_RESET_ALL,0,0,1}; 
+static uint8_t buf_reset_almost_all[BN_SPI_BYTES] = {REG_RESET_ALL,0,0,2}; 
+static uint8_t buf_reset_counter[BN_SPI_BYTES] = {REG_RESET_COUNTER,0,0,1}; 
+static uint8_t buf_adc_clk_rst[BN_SPI_BYTES] = {REG_ADC_CLK_RST,0,0,0}; 
+static uint8_t buf_apply_attenuation[BN_SPI_BYTES] = {REG_ATTEN_APPLY,0,0,0}; 
 
 static void fillBuffers() __attribute__((constructor)); //this will fill them
 
@@ -274,7 +274,7 @@ void fillBuffers()
   int i; 
 
   memset(buf_mode,0,sizeof(buf_mode)); 
-  for (i = 0; i < NP_NUM_MODE; i++) 
+  for (i = 0; i < BN_NUM_MODE; i++) 
   {
     buf_mode[i][0] = REG_MODE; 
     buf_mode[i][3] = i; 
@@ -282,28 +282,28 @@ void fillBuffers()
 
 
   memset(buf_set_read_reg,0,sizeof(buf_set_read_reg)); 
-  for (i = 0; i < NP_NUM_REGISTER; i++) 
+  for (i = 0; i < BN_NUM_REGISTER; i++) 
   {
     buf_set_read_reg[i][0]=  REG_SET_READ_REG; 
     buf_set_read_reg[i][3] = i; 
   }
 
   memset(buf_channel,0,sizeof(buf_channel)); 
-  for (i = 0; i < NP_NUM_CHAN; i++) 
+  for (i = 0; i < BN_NUM_CHAN; i++) 
   {
     buf_channel[i][0] = REG_CHANNEL; 
     buf_channel[i][3] = 1<<i; 
   }
 
   memset(buf_buffer,0,sizeof(buf_buffer)); 
-  for (i = 0; i < NP_NUM_BUFFER; i++) 
+  for (i = 0; i < BN_NUM_BUFFER; i++) 
   {
     buf_buffer[i][0] = REG_BUFFER; 
     buf_buffer[i][3] = i; 
   }
 
   memset(buf_ram_addr,0,sizeof(buf_ram_addr)); 
-  for (i = 0; i < NP_ADDRESS_MAX; i++) 
+  for (i = 0; i < BN_ADDRESS_MAX; i++) 
   {
     buf_ram_addr[i][0] = REG_RAM_ADDR;
     buf_ram_addr[i][3] = i;
@@ -311,13 +311,13 @@ void fillBuffers()
 
   memset(buf_chunk,0,sizeof(buf_chunk)); 
 
-  for (i = 0; i < NP_NUM_CHUNK;i++)
+  for (i = 0; i < BN_NUM_CHUNK;i++)
   {
     buf_chunk[i][0]=REG_CHUNK+i; 
   }
 
   memset(buf_clear,0,sizeof(buf_clear)); 
-  for (i = 0; i < (1 << NP_NUM_BUFFER); i++)
+  for (i = 0; i < (1 << BN_NUM_BUFFER); i++)
   {
     buf_clear[i][0] = REG_CLEAR; 
     buf_clear[i][3] = i;  
@@ -333,7 +333,7 @@ void fillBuffers()
 
 
 
-static void setup_xfers( nuphase_dev_t *d)
+static void setup_xfers( beacon_dev_t *d)
 {
   int i, b; 
   USING(d); 
@@ -341,7 +341,7 @@ static void setup_xfers( nuphase_dev_t *d)
   {
     for (i = 0; i < MAX_XFERS; i++)
     {
-      d->buf[b][i].len = NP_SPI_BYTES; 
+      d->buf[b][i].len = BN_SPI_BYTES; 
       d->buf[b][i].cs_change =d->cs_change; //deactivate cs between transfers
       d->buf[b][i].delay_usecs = d->delay_us;//? 
     }
@@ -350,12 +350,12 @@ static void setup_xfers( nuphase_dev_t *d)
 }
 
 
-static int buffer_send(nuphase_dev_t * d, nuphase_which_board_t which)
+static int buffer_send(beacon_dev_t * d, beacon_which_board_t which)
 {
   int wrote; 
   if (!d->nused[which]) return 0; 
   wrote = do_xfer(d->fd[which], d->nused[which], d->buf[which]); 
-  if (wrote < d->nused[which] * NP_SPI_BYTES) 
+  if (wrote < d->nused[which] * BN_SPI_BYTES) 
   {
     fprintf(stderr,"IOCTL failed! returned: %d\n",wrote); 
     return -1; 
@@ -368,7 +368,7 @@ static int buffer_send(nuphase_dev_t * d, nuphase_which_board_t which)
 
 
 // this will send if full!  
-static int buffer_append(nuphase_dev_t * d, nuphase_which_board_t which, const uint8_t * txbuf, const uint8_t * rxbuf) 
+static int buffer_append(beacon_dev_t * d, beacon_which_board_t which, const uint8_t * txbuf, const uint8_t * rxbuf) 
 {
   //check if full 
   if (d->nused[which] >= MAX_XFERS) //greater than just in case, but it already means something went horribly wrong 
@@ -385,7 +385,7 @@ static int buffer_append(nuphase_dev_t * d, nuphase_which_board_t which, const u
   return 0; 
 }
 
-static int append_read_register(nuphase_dev_t *d, nuphase_which_board_t which, uint8_t address, uint8_t * result)
+static int append_read_register(beacon_dev_t *d, beacon_which_board_t which, uint8_t address, uint8_t * result)
 {
   int ret = 0; 
   ret += buffer_append(d,which, buf_set_read_reg[address],0);
@@ -400,7 +400,7 @@ static int append_read_register(nuphase_dev_t *d, nuphase_which_board_t which, u
  * in the appropriate place. 
  **/ 
 
-static int synchronized_command(nuphase_dev_t *d, const uint8_t * cmd, uint8_t reg_to_read_after,
+static int synchronized_command(beacon_dev_t *d, const uint8_t * cmd, uint8_t reg_to_read_after,
                                   uint8_t * result_master, uint8_t * result_slave) {
   
   //just do a normal command
@@ -447,7 +447,7 @@ static int synchronized_command(nuphase_dev_t *d, const uint8_t * cmd, uint8_t r
   return ret; 
 }
 
-static int mark_buffers_done(nuphase_dev_t * d,  nuphase_buffer_mask_t buf)
+static int mark_buffers_done(beacon_dev_t * d,  beacon_buffer_mask_t buf)
 {
 
   if (NBD(d) < 2) //no slave device, so no sync needed
@@ -471,8 +471,8 @@ static int mark_buffers_done(nuphase_dev_t * d,  nuphase_buffer_mask_t buf)
 
   else
   {
-    uint8_t cleared_master[NP_SPI_BYTES]; 
-    uint8_t cleared_slave[NP_SPI_BYTES]; 
+    uint8_t cleared_master[BN_SPI_BYTES]; 
+    uint8_t cleared_slave[BN_SPI_BYTES]; 
 
     int ret = synchronized_command(d, buf_clear[buf], REG_CLEAR_STATUS, cleared_master, cleared_slave); 
 //    printf("Clearing %d on both\n", buf2clr); 
@@ -512,7 +512,7 @@ static int mark_buffers_done(nuphase_dev_t * d,  nuphase_buffer_mask_t buf)
 
 
 
-static int loop_over_chunks_half_duplex(nuphase_dev_t * d, nuphase_which_board_t which,  uint8_t naddr, uint8_t start_address, uint8_t * result) 
+static int loop_over_chunks_half_duplex(beacon_dev_t * d, beacon_which_board_t which,  uint8_t naddr, uint8_t start_address, uint8_t * result) 
 {
 
   int iaddr; 
@@ -524,12 +524,12 @@ static int loop_over_chunks_half_duplex(nuphase_dev_t * d, nuphase_which_board_t
     ret += buffer_append(d,which, buf_ram_addr[start_address + iaddr], 0); 
     if (ret) return ret; 
 
-    for (ichunk = 0; ichunk < NP_NUM_CHUNK; ichunk++)
+    for (ichunk = 0; ichunk < BN_NUM_CHUNK; ichunk++)
     {
       ret+= buffer_append(d,which, buf_chunk[ichunk], 0); 
       if (ret) return ret; 
 
-      ret+= buffer_append(d, which, 0, result + NP_NUM_CHUNK *NP_SPI_BYTES* iaddr + ichunk * NP_SPI_BYTES); 
+      ret+= buffer_append(d, which, 0, result + BN_NUM_CHUNK *BN_SPI_BYTES* iaddr + ichunk * BN_SPI_BYTES); 
       if (ret) return ret; 
     }
   }
@@ -538,7 +538,7 @@ static int loop_over_chunks_half_duplex(nuphase_dev_t * d, nuphase_which_board_t
 }
 
 static int __attribute__((unused)) 
-loop_over_chunks_full_duplex(nuphase_dev_t * d, nuphase_which_board_t which,  uint8_t naddr, uint8_t start_address, uint8_t * result)  
+loop_over_chunks_full_duplex(beacon_dev_t * d, beacon_which_board_t which,  uint8_t naddr, uint8_t start_address, uint8_t * result)  
 {
 
   int iaddr; 
@@ -550,14 +550,14 @@ loop_over_chunks_full_duplex(nuphase_dev_t * d, nuphase_which_board_t which,  ui
     ret += buffer_append(d,which, buf_ram_addr[start_address + iaddr], 0); 
     if (ret) return ret; 
 
-    for (ichunk = 0; ichunk < NP_NUM_CHUNK; ichunk++)
+    for (ichunk = 0; ichunk < BN_NUM_CHUNK; ichunk++)
     {
-      ret+= buffer_append(d,which, buf_chunk[ichunk], iaddr == 0 && ichunk == 0 ? 0 : result + NP_NUM_CHUNK * NP_SPI_BYTES * iaddr + (ichunk-1) * NP_SPI_BYTES); 
+      ret+= buffer_append(d,which, buf_chunk[ichunk], iaddr == 0 && ichunk == 0 ? 0 : result + BN_NUM_CHUNK * BN_SPI_BYTES * iaddr + (ichunk-1) * BN_SPI_BYTES); 
       if (ret) return ret; 
 
-      if (iaddr == naddr-1 && ichunk == NP_NUM_CHUNK - 1)
+      if (iaddr == naddr-1 && ichunk == BN_NUM_CHUNK - 1)
       {
-        ret+= buffer_append(d, which, 0, result + NP_NUM_CHUNK *NP_SPI_BYTES* iaddr + ichunk * NP_SPI_BYTES); 
+        ret+= buffer_append(d, which, 0, result + BN_NUM_CHUNK *BN_SPI_BYTES* iaddr + ichunk * BN_SPI_BYTES); 
         if (ret) return ret; 
       }
     }
@@ -568,7 +568,7 @@ loop_over_chunks_full_duplex(nuphase_dev_t * d, nuphase_which_board_t which,  ui
 
 
 
-int nuphase_read_raw(nuphase_dev_t *d,  uint8_t buffer, uint8_t channel, uint8_t start, uint8_t finish, uint8_t * data, nuphase_which_board_t which) 
+int beacon_read_raw(beacon_dev_t *d,  uint8_t buffer, uint8_t channel, uint8_t start, uint8_t finish, uint8_t * data, beacon_which_board_t which) 
 {
 
   uint8_t naddress = finish - start + 1; 
@@ -591,11 +591,11 @@ int nuphase_read_raw(nuphase_dev_t *d,  uint8_t buffer, uint8_t channel, uint8_t
 
 
 
-int nuphase_read_register(nuphase_dev_t * d, uint8_t address, uint8_t *result, nuphase_which_board_t which)
+int beacon_read_register(beacon_dev_t * d, uint8_t address, uint8_t *result, beacon_which_board_t which)
 {
 
   int ret; 
-  /* if (address >= NP_NUM_REGISTER) return -1;   */
+  /* if (address >= BN_NUM_REGISTER) return -1;   */
   USING(d); 
   ret =  append_read_register(d,which, address,result); 
   ret += buffer_send(d,which); 
@@ -611,7 +611,7 @@ int nuphase_read_register(nuphase_dev_t * d, uint8_t address, uint8_t *result, n
 }
 
 
-int nuphase_sw_trigger(nuphase_dev_t * d ) 
+int beacon_sw_trigger(beacon_dev_t * d ) 
 {
   const uint8_t buf[4] = { REG_FORCE_TRIG, 0,0, 1};  
   int ret = 0; 
@@ -622,7 +622,7 @@ int nuphase_sw_trigger(nuphase_dev_t * d )
     USING(d); 
     int wrote; 
     wrote = do_write(d->fd[0], buf); //always the master
-    ret = wrote == NP_SPI_BYTES ? 0 : -1;  
+    ret = wrote == BN_SPI_BYTES ? 0 : -1;  
     DONE(d); 
   }
   else
@@ -635,30 +635,30 @@ int nuphase_sw_trigger(nuphase_dev_t * d )
 }
 
 
-int nuphase_calpulse(nuphase_dev_t * d, unsigned state) 
+int beacon_calpulse(beacon_dev_t * d, unsigned state) 
 {
   uint8_t buf[4] = { REG_CALPULSE, 0,0, state};  
   int ret = 0;
   int i = 0; 
   USING(d); 
-  for (i = 0; i < NP_MAX_BOARDS; i++) 
+  for (i = 0; i < BN_MAX_BOARDS; i++) 
   {
     if (d->fd[i])
       ret = do_write(d->fd[i], buf); 
   }
   DONE(d); 
-  return ret == NP_SPI_BYTES ? 0 : 1 ;
+  return ret == BN_SPI_BYTES ? 0 : 1 ;
 }
 
 
 static int board_id_counter =1; 
 
-nuphase_dev_t * nuphase_open(const char * devicename_master,
+beacon_dev_t * beacon_open(const char * devicename_master,
                              const char * devicename_slave,
                              int gpio_number, int locking)
 {
   int locked, fd[2]; 
-  nuphase_dev_t * dev; 
+  beacon_dev_t * dev; 
 
   fd[0] = open(devicename_master, O_RDWR); 
   if (fd[0] < 0) 
@@ -718,7 +718,7 @@ nuphase_dev_t * nuphase_open(const char * devicename_master,
 
 
 
-  dev = malloc(sizeof(nuphase_dev_t)); 
+  dev = malloc(sizeof(beacon_dev_t)); 
   dev->poll_interval = 500; 
   memset(dev,0,sizeof(*dev)); 
   dev->gpio_pin = gpio_pin; 
@@ -729,8 +729,8 @@ nuphase_dev_t * nuphase_open(const char * devicename_master,
   dev->cancel_wait = 0; 
   dev->event_counter = 0; 
   dev->next_read_buffer = 0; 
-  dev->cs_change =NP_CS_CHANGE; 
-  dev->delay_us =NP_DELAY_USECS; 
+  dev->cs_change =BN_CS_CHANGE; 
+  dev->delay_us =BN_DELAY_USECS; 
   dev->current_buf[0] = -1; 
   dev->current_buf[1] = -1; 
   dev->current_mode[0] = -1; 
@@ -769,7 +769,7 @@ nuphase_dev_t * nuphase_open(const char * devicename_master,
 
  //check if this is a master or slave if locking is enabled
  uint8_t fwver[4]; 
- nuphase_read_register(dev, REG_FIRMWARE_VER, fwver, MASTER); 
+ beacon_read_register(dev, REG_FIRMWARE_VER, fwver, MASTER); 
 
  if (!fwver[1])
  {
@@ -778,7 +778,7 @@ nuphase_dev_t * nuphase_open(const char * devicename_master,
 
  if (fd[1])
  {
-   nuphase_read_register(dev,  REG_FIRMWARE_VER, fwver, SLAVE); 
+   beacon_read_register(dev,  REG_FIRMWARE_VER, fwver, SLAVE); 
    if (fwver[1])
    {
      fprintf(stderr,"WARNING! The device chosen as slave does not identify as slave.\n"); 
@@ -786,62 +786,62 @@ nuphase_dev_t * nuphase_open(const char * devicename_master,
  }
 
 
-  if (nuphase_reset(dev, NP_RESET_COUNTERS)) 
+  if (beacon_reset(dev, BN_RESET_COUNTERS)) 
   {
     fprintf(stderr,"Unable to reset device... "); 
-    nuphase_close(dev); 
+    beacon_close(dev); 
     return 0; 
   }
 
 
 #ifdef CHEAT_READ_THRESHOLDS
-  for (i = 0; i < NP_NUM_BEAMS; i++) dev->cheat_thresholds[i] = 7000; //something non-crazy
+  for (i = 0; i < BN_NUM_BEAMS; i++) dev->cheat_thresholds[i] = 7000; //something non-crazy
 #endif
 
   return dev; 
 
 }
 
-void nuphase_set_board_id(nuphase_dev_t * d, uint8_t id, nuphase_which_board_t which)
+void beacon_set_board_id(beacon_dev_t * d, uint8_t id, beacon_which_board_t which)
 {
   if (id <= board_id_counter) board_id_counter = id+1; 
   d->board_id[which] = id; 
 }
 
-uint8_t nuphase_get_board_id(const nuphase_dev_t * d, nuphase_which_board_t which) 
+uint8_t beacon_get_board_id(const beacon_dev_t * d, beacon_which_board_t which) 
 {
   return d->board_id[which]; 
 }
 
-void nuphase_set_readout_number_offset(nuphase_dev_t * d, uint64_t offset) 
+void beacon_set_readout_number_offset(beacon_dev_t * d, uint64_t offset) 
 {
   d->readout_number_offset = offset; 
 }
 
 
-void nuphase_set_buffer_length(nuphase_dev_t * d, uint16_t length)
+void beacon_set_buffer_length(beacon_dev_t * d, uint16_t length)
 {
   USING(d); //definitely do not want to change this mid readout 
   d->buffer_length = length; 
   DONE(d); 
 }
 
-uint16_t nuphase_get_bufferlength(const nuphase_dev_t * d) 
+uint16_t beacon_get_bufferlength(const beacon_dev_t * d) 
 {
   return d->buffer_length; 
 }
 
 
-int nuphase_fwinfo(nuphase_dev_t * d, nuphase_fwinfo_t * info, nuphase_which_board_t which)
+int beacon_fwinfo(beacon_dev_t * d, beacon_fwinfo_t * info, beacon_which_board_t which)
 {
 
   //we need to read 5 registers, so 15 xfers 
   int ret = 0; 
-  uint8_t version[NP_SPI_BYTES];
-  uint8_t date[NP_SPI_BYTES];
-  uint8_t dna_low[NP_SPI_BYTES]; 
-  uint8_t dna_mid[NP_SPI_BYTES]; 
-  uint8_t dna_hi[NP_SPI_BYTES]; 
+  uint8_t version[BN_SPI_BYTES];
+  uint8_t date[BN_SPI_BYTES];
+  uint8_t dna_low[BN_SPI_BYTES]; 
+  uint8_t dna_mid[BN_SPI_BYTES]; 
+  uint8_t dna_hi[BN_SPI_BYTES]; 
 
   USING(d); 
   ret+=append_read_register(d, which,REG_FIRMWARE_VER, version); 
@@ -869,10 +869,10 @@ int nuphase_fwinfo(nuphase_dev_t * d, nuphase_fwinfo_t * info, nuphase_which_boa
 }
 
 
-int nuphase_close(nuphase_dev_t * d) 
+int beacon_close(beacon_dev_t * d) 
 {
   int ret = 0; 
-  nuphase_cancel_wait(d); 
+  beacon_cancel_wait(d); 
   int ibd;
   USING(d); 
 
@@ -890,7 +890,7 @@ int nuphase_close(nuphase_dev_t * d)
 
     if (pthread_mutex_trylock(&d->wait_mut)) // lock is beind held by a thread
     {
-      nuphase_cancel_wait(d); 
+      beacon_cancel_wait(d); 
       pthread_mutex_lock(&d->wait_mut); 
     }
 
@@ -920,17 +920,17 @@ int nuphase_close(nuphase_dev_t * d)
   return ret; 
 }
 
-void nuphase_cancel_wait(nuphase_dev_t *d) 
+void beacon_cancel_wait(beacon_dev_t *d) 
 {
   d->cancel_wait = 1;  
 }
 
-int nuphase_wait(nuphase_dev_t * d, nuphase_buffer_mask_t * ready_buffers, float timeout, nuphase_which_board_t which) 
+int beacon_wait(beacon_dev_t * d, beacon_buffer_mask_t * ready_buffers, float timeout, beacon_which_board_t which) 
 {
 
   //If locking is enabled and a second thread attempts
   //to wait for the same device, return EBUSY. 
-  // making nuphase_wait for multiple threads sounds way too hard
+  // making beacon_wait for multiple threads sounds way too hard
   if (d->enable_locking) 
   {
     if (pthread_mutex_trylock(&d->wait_mut))
@@ -941,10 +941,10 @@ int nuphase_wait(nuphase_dev_t * d, nuphase_buffer_mask_t * ready_buffers, float
 
   /* This was cancelled before (or almost concurrently with when)  we started.
   /  We'll just clear the cancel and return EAGAIN. I thought long and hard
-  /  about what to do in the case that nuphase_cancel_wait is called and there
-  /  is nothing waiting, but I think attempting to detect if nuphase_wait is
+  /  about what to do in the case that beacon_cancel_wait is called and there
+  /  is nothing waiting, but I think attempting to detect if beacon_wait is
   /  currently called is fraught with race conditions. Anyway,
-  /  nuphase_cancel_wait will probably not be called willy-nilly... usually
+  /  beacon_cancel_wait will probably not be called willy-nilly... usually
   /  just when you want to exit the program I imagine. 
   */
   
@@ -957,7 +957,7 @@ int nuphase_wait(nuphase_dev_t * d, nuphase_buffer_mask_t * ready_buffers, float
 
 
 
-  nuphase_buffer_mask_t something = 0; 
+  beacon_buffer_mask_t something = 0; 
   struct timespec start; 
   if (timeout >0) clock_gettime(CLOCK_MONOTONIC, &start); 
 
@@ -966,7 +966,7 @@ int nuphase_wait(nuphase_dev_t * d, nuphase_buffer_mask_t * ready_buffers, float
   while(!something && (timeout <= 0 || waited < timeout))
   {
 
-      something = nuphase_check_buffers(d,&d->hardware_next,which); 
+      something = beacon_check_buffers(d,&d->hardware_next,which); 
 
       if (d->cancel_wait) break; 
       if (!something)
@@ -1001,11 +1001,11 @@ int nuphase_wait(nuphase_dev_t * d, nuphase_buffer_mask_t * ready_buffers, float
 
 
 
-nuphase_buffer_mask_t nuphase_check_buffers(nuphase_dev_t * d, uint8_t * next, nuphase_which_board_t which) 
+beacon_buffer_mask_t beacon_check_buffers(beacon_dev_t * d, uint8_t * next, beacon_which_board_t which) 
 {
 
-  uint8_t result[NP_SPI_BYTES]; 
-  nuphase_buffer_mask_t mask; 
+  uint8_t result[BN_SPI_BYTES]; 
+  beacon_buffer_mask_t mask; 
   int ret = 0; 
 
   USING(d); 
@@ -1018,7 +1018,7 @@ nuphase_buffer_mask_t nuphase_check_buffers(nuphase_dev_t * d, uint8_t * next, n
 }
 
 
-int nuphase_set_pretrigger(nuphase_dev_t * d, uint8_t pretrigger)
+int beacon_set_pretrigger(beacon_dev_t * d, uint8_t pretrigger)
 {
   uint8_t pretrigger_buf[] = { REG_PRETRIGGER, 0, 0, pretrigger & 0xf};
   int ret = synchronized_command(d, pretrigger_buf,0,0,0); 
@@ -1026,37 +1026,37 @@ int nuphase_set_pretrigger(nuphase_dev_t * d, uint8_t pretrigger)
   return ret; 
 }
 
-uint8_t nuphase_get_pretrigger(const nuphase_dev_t * d)
+uint8_t beacon_get_pretrigger(const beacon_dev_t * d)
 {
   return d->pretrigger; 
 }
 
 
 
-int nuphase_set_channel_mask(nuphase_dev_t * d, uint8_t mask) 
+int beacon_set_channel_mask(beacon_dev_t * d, uint8_t mask) 
 
 {
-    uint8_t channel_mask_buf_master[NP_SPI_BYTES]= { REG_CHANNEL_MASK, 0, 0, mask & 0xff}; 
+    uint8_t channel_mask_buf_master[BN_SPI_BYTES]= { REG_CHANNEL_MASK, 0, 0, mask & 0xff}; 
 
     USING(d); 
     int written = do_write(d->fd[MASTER], channel_mask_buf_master); 
     DONE(d); 
 
-    return written != NP_SPI_BYTES; 
+    return written != BN_SPI_BYTES; 
 }
 
 
-uint16_t nuphase_get_channel_mask(nuphase_dev_t* d) 
+uint16_t beacon_get_channel_mask(beacon_dev_t* d) 
 {
   uint16_t mask = 0; 
-  uint8_t buf_master[NP_SPI_BYTES], buf_slave[NP_SPI_BYTES]; 
+  uint8_t buf_master[BN_SPI_BYTES], buf_slave[BN_SPI_BYTES]; 
 
-  nuphase_read_register(d, REG_CHANNEL_MASK, buf_master, MASTER); 
+  beacon_read_register(d, REG_CHANNEL_MASK, buf_master, MASTER); 
   mask = buf_master[3]; 
 
   if (d->fd[SLAVE]) 
   {
-    nuphase_read_register(d, REG_CHANNEL_MASK, buf_slave, SLAVE); 
+    beacon_read_register(d, REG_CHANNEL_MASK, buf_slave, SLAVE); 
     mask = mask |  ( buf_slave[3] << 8); 
   }
 
@@ -1064,7 +1064,7 @@ uint16_t nuphase_get_channel_mask(nuphase_dev_t* d)
 }
 
 
-int nuphase_set_trigger_mask(nuphase_dev_t * d, uint32_t mask)
+int beacon_set_trigger_mask(beacon_dev_t * d, uint32_t mask)
 {
   uint8_t trigger_mask_buf[]= { REG_TRIGGER_MASK, (mask >> 16) & 0xff, (mask >> 8) & 0xff, mask & 0xff}; 
   USING(d); 
@@ -1074,24 +1074,24 @@ int nuphase_set_trigger_mask(nuphase_dev_t * d, uint32_t mask)
 }
 
 
-uint32_t nuphase_get_trigger_mask(nuphase_dev_t *d) 
+uint32_t beacon_get_trigger_mask(beacon_dev_t *d) 
 {
-  uint8_t buf[NP_SPI_BYTES]; 
+  uint8_t buf[BN_SPI_BYTES]; 
   uint32_t mask; 
-  nuphase_read_register(d, REG_TRIGGER_MASK, buf, MASTER); 
+  beacon_read_register(d, REG_TRIGGER_MASK, buf, MASTER); 
   mask = buf[3]; 
   mask = mask | (buf[2] << 8) | (buf[1] << 16); 
   return mask; 
 }
 
 
-int nuphase_set_thresholds(nuphase_dev_t *d, const uint32_t * trigger_thresholds, uint32_t dont) 
+int beacon_set_thresholds(beacon_dev_t *d, const uint32_t * trigger_thresholds, uint32_t dont) 
 {
-  uint8_t thresholds_buf[NP_NUM_BEAMS][NP_SPI_BYTES]; 
+  uint8_t thresholds_buf[BN_NUM_BEAMS][BN_SPI_BYTES]; 
   USING(d); 
   int i; 
   int ret = 0; 
-  for (i = 0; i < NP_NUM_BEAMS; i++)
+  for (i = 0; i < BN_NUM_BEAMS; i++)
   {
 
 #ifdef CHEAT_READ_THRESHOLDS
@@ -1116,22 +1116,22 @@ int nuphase_set_thresholds(nuphase_dev_t *d, const uint32_t * trigger_thresholds
 
 
 #ifdef CHEAT_READ_THRESHOLDS
-int nuphase_get_thresholds(nuphase_dev_t *d, uint32_t * thresholds) 
+int beacon_get_thresholds(beacon_dev_t *d, uint32_t * thresholds) 
 {
   int i; 
-  for (i = 0; i < NP_NUM_BEAMS; i++) thresholds[i] = d->cheat_thresholds[i]; 
+  for (i = 0; i < BN_NUM_BEAMS; i++) thresholds[i] = d->cheat_thresholds[i]; 
   return 0; 
 }
 
 #else
 
-int nuphase_get_thresholds(nuphase_dev_t *d, uint32_t * thresholds) 
+int beacon_get_thresholds(beacon_dev_t *d, uint32_t * thresholds) 
 {
-  uint8_t thresholds_buf[NP_NUM_BEAMS][NP_SPI_BYTES]; 
+  uint8_t thresholds_buf[BN_NUM_BEAMS][BN_SPI_BYTES]; 
   int i; 
   int ret = 0; 
   USING(d); 
-  for (i = 0; i < NP_NUM_BEAMS; i++)
+  for (i = 0; i < BN_NUM_BEAMS; i++)
   {
     ret+= append_read_register(d, MASTER, REG_THRESHOLDS+i, thresholds_buf[i]); 
   }
@@ -1141,11 +1141,11 @@ int nuphase_get_thresholds(nuphase_dev_t *d, uint32_t * thresholds)
   if (ret) 
   {
     fprintf(stderr,  "%s! Got return %d, setting thresholds to zero!\n", __PRETTY_FUNCTION__, ret);
-    memset(thresholds, 0,NP_NUM_BEAMS * sizeof(*thresholds)); 
+    memset(thresholds, 0,BN_NUM_BEAMS * sizeof(*thresholds)); 
   }
   else
   {
-    for (i = 0; i < NP_NUM_BEAMS; i++)
+    for (i = 0; i < BN_NUM_BEAMS; i++)
     {
       thresholds[i] = thresholds_buf[i][3] & 0xff; 
       thresholds[i] = thresholds[i] |  ( (thresholds_buf[i][2] & 0xff) << 8); 
@@ -1194,14 +1194,14 @@ void reverse_buf_bits(uint8_t * buf)
 
 
 
-int nuphase_set_attenuation(nuphase_dev_t * d, const uint8_t * attenuation_master, const uint8_t * attenuation_slave)
+int beacon_set_attenuation(beacon_dev_t * d, const uint8_t * attenuation_master, const uint8_t * attenuation_slave)
 {
   int ret = 0; 
   if (attenuation_master)
   {
-    uint8_t attenuation_012[NP_SPI_BYTES] = { REG_ATTEN_012, attenuation_master[2], attenuation_master[1], attenuation_master[0] }; 
-    uint8_t attenuation_345[NP_SPI_BYTES] = { REG_ATTEN_345, attenuation_master[5], attenuation_master[4], attenuation_master[3] };
-    uint8_t attenuation_067[NP_SPI_BYTES] = { REG_ATTEN_67, 0x0, attenuation_master[7], attenuation_master[6] }; 
+    uint8_t attenuation_012[BN_SPI_BYTES] = { REG_ATTEN_012, attenuation_master[2], attenuation_master[1], attenuation_master[0] }; 
+    uint8_t attenuation_345[BN_SPI_BYTES] = { REG_ATTEN_345, attenuation_master[5], attenuation_master[4], attenuation_master[3] };
+    uint8_t attenuation_067[BN_SPI_BYTES] = { REG_ATTEN_67, 0x0, attenuation_master[7], attenuation_master[6] }; 
     reverse_buf_bits(attenuation_012);
     reverse_buf_bits(attenuation_345);
     reverse_buf_bits(attenuation_067);
@@ -1216,9 +1216,9 @@ int nuphase_set_attenuation(nuphase_dev_t * d, const uint8_t * attenuation_maste
 
   if (attenuation_slave && d->fd[SLAVE])
   {
-    uint8_t attenuation_012[NP_SPI_BYTES] = { REG_ATTEN_012, attenuation_slave[2], attenuation_slave[1], attenuation_slave[0] }; 
-    uint8_t attenuation_345[NP_SPI_BYTES] = { REG_ATTEN_345, attenuation_slave[5], attenuation_slave[4], attenuation_slave[3] };
-    uint8_t attenuation_067[NP_SPI_BYTES] = { REG_ATTEN_67, 0x0, attenuation_slave[7], attenuation_slave[6] }; 
+    uint8_t attenuation_012[BN_SPI_BYTES] = { REG_ATTEN_012, attenuation_slave[2], attenuation_slave[1], attenuation_slave[0] }; 
+    uint8_t attenuation_345[BN_SPI_BYTES] = { REG_ATTEN_345, attenuation_slave[5], attenuation_slave[4], attenuation_slave[3] };
+    uint8_t attenuation_067[BN_SPI_BYTES] = { REG_ATTEN_67, 0x0, attenuation_slave[7], attenuation_slave[6] }; 
     reverse_buf_bits(attenuation_012);
     reverse_buf_bits(attenuation_345);
     reverse_buf_bits(attenuation_067);
@@ -1237,12 +1237,12 @@ int nuphase_set_attenuation(nuphase_dev_t * d, const uint8_t * attenuation_maste
   return ret; 
 }
 
-int nuphase_get_attenuation(nuphase_dev_t * d, uint8_t * attenuation_master, uint8_t * attenuation_slave)
+int beacon_get_attenuation(beacon_dev_t * d, uint8_t * attenuation_master, uint8_t * attenuation_slave)
 {
   int ret = 0; 
-  uint8_t attenuation_012[NP_SPI_BYTES];
-  uint8_t attenuation_345[NP_SPI_BYTES];
-  uint8_t attenuation_067[NP_SPI_BYTES];
+  uint8_t attenuation_012[BN_SPI_BYTES];
+  uint8_t attenuation_345[BN_SPI_BYTES];
+  uint8_t attenuation_067[BN_SPI_BYTES];
 
 
   if (attenuation_master) 
@@ -1304,23 +1304,23 @@ int nuphase_get_attenuation(nuphase_dev_t * d, uint8_t * attenuation_master, uin
 }
 
 
-int nuphase_set_trigger_enables(nuphase_dev_t * d, nuphase_trigger_enable_t enables, nuphase_which_board_t w) 
+int beacon_set_trigger_enables(beacon_dev_t * d, beacon_trigger_enable_t enables, beacon_which_board_t w) 
 {
-  uint8_t trigger_enable_buf[NP_SPI_BYTES] = {REG_TRIG_ENABLE, 0, enables.enable_beam8 | (enables.enable_beam4a << 1) | (enables.enable_beam4b << 2), enables.enable_beamforming}; 
+  uint8_t trigger_enable_buf[BN_SPI_BYTES] = {REG_TRIG_ENABLE, 0, enables.enable_beam8 | (enables.enable_beam4a << 1) | (enables.enable_beam4b << 2), enables.enable_beamforming}; 
 
 //  printf("Setting trigger enables: [0x%x 0x%x 0x%x 0x%x]\n", trigger_enable_buf[0], trigger_enable_buf[1], trigger_enable_buf[2], trigger_enable_buf[3]); 
   USING(d); 
   int written = do_write(d->fd[w], trigger_enable_buf); 
   DONE(d); 
-  return written != NP_SPI_BYTES ; 
+  return written != BN_SPI_BYTES ; 
 }
 
-nuphase_trigger_enable_t nuphase_get_trigger_enables(nuphase_dev_t * d, nuphase_which_board_t w) 
+beacon_trigger_enable_t beacon_get_trigger_enables(beacon_dev_t * d, beacon_which_board_t w) 
 {
-  uint8_t trigger_enable_buf[NP_SPI_BYTES]; 
-  nuphase_read_register(d,REG_TRIG_ENABLE, trigger_enable_buf, w); 
+  uint8_t trigger_enable_buf[BN_SPI_BYTES]; 
+  beacon_read_register(d,REG_TRIG_ENABLE, trigger_enable_buf, w); 
   printf("Got trigger enables: [0x%x 0x%x 0x%x 0x%x]\n", trigger_enable_buf[0], trigger_enable_buf[1], trigger_enable_buf[2], trigger_enable_buf[3]); 
-  nuphase_trigger_enable_t ans; 
+  beacon_trigger_enable_t ans; 
   ans.enable_beamforming = trigger_enable_buf[3] & 1; 
   ans.enable_beam8 = trigger_enable_buf[2] & 1; 
   ans.enable_beam4a = (trigger_enable_buf[2] >> 1) & 1; 
@@ -1331,23 +1331,23 @@ nuphase_trigger_enable_t nuphase_get_trigger_enables(nuphase_dev_t * d, nuphase_
 
 
 
-int nuphase_set_trigger_polarization(nuphase_dev_t * d, nuphase_trigger_polarization_t pol)
+int beacon_set_trigger_polarization(beacon_dev_t * d, beacon_trigger_polarization_t pol)
 {
 
-  uint8_t trigger_pol_buf[NP_SPI_BYTES] = {REG_TRIG_POLARIZATION, 0, 0, pol}; 
+  uint8_t trigger_pol_buf[BN_SPI_BYTES] = {REG_TRIG_POLARIZATION, 0, 0, pol}; 
 //  printf("Setting trigger polarization: [0x%x 0x%x 0x%x 0x%x]\n", trigger_pol_buf[0], trigger_pol_buf[1], trigger_pol_buf[2], trigger_pol_buf[3]);
   USING(d);
   int written = do_write(d->fd[MASTER], trigger_pol_buf);
   DONE(d);
-  return written != NP_SPI_BYTES;
+  return written != BN_SPI_BYTES;
 }
 
-nuphase_trigger_polarization_t nuphase_get_trigger_polarization(nuphase_dev_t * d)
+beacon_trigger_polarization_t beacon_get_trigger_polarization(beacon_dev_t * d)
 {
-  uint8_t trigger_pol_buf[NP_SPI_BYTES];
-  nuphase_read_register(d, REG_TRIG_POLARIZATION, trigger_pol_buf, MASTER);
+  uint8_t trigger_pol_buf[BN_SPI_BYTES];
+  beacon_read_register(d, REG_TRIG_POLARIZATION, trigger_pol_buf, MASTER);
 
-  nuphase_trigger_polarization_t pol = trigger_pol_buf[NP_SPI_BYTES-1];
+  beacon_trigger_polarization_t pol = trigger_pol_buf[BN_SPI_BYTES-1];
   return pol;
 }
 
@@ -1357,10 +1357,10 @@ nuphase_trigger_polarization_t nuphase_get_trigger_polarization(nuphase_dev_t * 
 
 
 
-int nuphase_phased_trigger_readout(nuphase_dev_t * d, int phased) 
+int beacon_phased_trigger_readout(beacon_dev_t * d, int phased) 
 {
 
-  uint8_t trigger_buf[NP_SPI_BYTES] = {REG_PHASED_TRIGGER, 0, 0, phased & 1}; 
+  uint8_t trigger_buf[BN_SPI_BYTES] = {REG_PHASED_TRIGGER, 0, 0, phased & 1}; 
   USING(d); 
   if (d->fd[SLAVE]) do_write(d->fd[SLAVE], trigger_buf); 
   do_write(d->fd[MASTER], trigger_buf); 
@@ -1370,19 +1370,19 @@ int nuphase_phased_trigger_readout(nuphase_dev_t * d, int phased)
 
 }
 
-int set_trigger_holdoff(nuphase_dev_t * d, uint16_t trigger_holdoff)
+int set_trigger_holdoff(beacon_dev_t * d, uint16_t trigger_holdoff)
 {
-  uint8_t trigger_holdoff_buf[NP_SPI_BYTES] = {REG_TRIG_HOLDOFF, 0, (trigger_holdoff >> 8) & 0xf, trigger_holdoff &0xff}; 
+  uint8_t trigger_holdoff_buf[BN_SPI_BYTES] = {REG_TRIG_HOLDOFF, 0, (trigger_holdoff >> 8) & 0xf, trigger_holdoff &0xff}; 
   USING(d); 
   int written = do_write(d->fd[MASTER], trigger_holdoff_buf); 
   DONE(d); 
-  return (written != NP_SPI_BYTES) ;
+  return (written != BN_SPI_BYTES) ;
 }
 
-uint16_t nuphase_get_trigger_holdoff(nuphase_dev_t *d) 
+uint16_t beacon_get_trigger_holdoff(beacon_dev_t *d) 
 {
-  uint8_t trigger_holdoff_buf[NP_SPI_BYTES]; 
-  nuphase_read_register(d, REG_TRIG_HOLDOFF, trigger_holdoff_buf, MASTER); 
+  uint8_t trigger_holdoff_buf[BN_SPI_BYTES]; 
+  beacon_read_register(d, REG_TRIG_HOLDOFF, trigger_holdoff_buf, MASTER); 
   return trigger_holdoff_buf[3] |  ( trigger_holdoff_buf[2] << 8); 
 }
 
@@ -1390,17 +1390,17 @@ uint16_t nuphase_get_trigger_holdoff(nuphase_dev_t *d)
 
 
 //indirection! 
-int nuphase_wait_for_and_read_multiple_events(nuphase_dev_t * d, 
-					      nuphase_header_t (*headers)[NP_NUM_BUFFER], 
-					      nuphase_event_t  (*events)[NP_NUM_BUFFER])  
+int beacon_wait_for_and_read_multiple_events(beacon_dev_t * d, 
+					      beacon_header_t (*headers)[BN_NUM_BUFFER], 
+					      beacon_event_t  (*events)[BN_NUM_BUFFER])  
 {
-  nuphase_buffer_mask_t mask; ; 
-  nuphase_wait(d,&mask,-1,MASTER); 
+  beacon_buffer_mask_t mask; ; 
+  beacon_wait(d,&mask,-1,MASTER); 
   if (mask) 
   {
     int ret; 
 //    printf("dev->next_read_buffer: %d, mask after waiting: %x, hw_next: %d\n",d->next_read_buffer, mask, d->hardware_next); 
-    ret = nuphase_read_multiple_array(d,mask,&(*headers)[0], &(*events)[0]); 
+    ret = beacon_read_multiple_array(d,mask,&(*headers)[0], &(*events)[0]); 
     if (!ret) return __builtin_popcount(mask); 
     else return -1; 
   }
@@ -1408,18 +1408,18 @@ int nuphase_wait_for_and_read_multiple_events(nuphase_dev_t * d,
 }
 
 //yay more indirection!
-int nuphase_read_single(nuphase_dev_t *d, uint8_t buffer, nuphase_header_t * header, nuphase_event_t * event)
+int beacon_read_single(beacon_dev_t *d, uint8_t buffer, beacon_header_t * header, beacon_event_t * event)
 {
-  nuphase_buffer_mask_t mask = 1 << buffer; 
-  return nuphase_read_multiple_ptr(d,mask,&header, &event); 
+  beacon_buffer_mask_t mask = 1 << buffer; 
+  return beacon_read_multiple_ptr(d,mask,&header, &event); 
 
 }
 
 //woohoo, even more indirection. 
-int nuphase_read_multiple_array(nuphase_dev_t *d, nuphase_buffer_mask_t mask, nuphase_header_t * headers,  nuphase_event_t * events) 
+int beacon_read_multiple_array(beacon_dev_t *d, beacon_buffer_mask_t mask, beacon_header_t * headers,  beacon_event_t * events) 
 {
-  nuphase_event_t * ev_ptr_array[NP_NUM_BUFFER]; 
-  nuphase_header_t * hd_ptr_array[NP_NUM_BUFFER]; 
+  beacon_event_t * ev_ptr_array[BN_NUM_BUFFER]; 
+  beacon_header_t * hd_ptr_array[BN_NUM_BUFFER]; 
   int i; 
 
   for ( i = 0; i < __builtin_popcount(mask); i++)
@@ -1428,7 +1428,7 @@ int nuphase_read_multiple_array(nuphase_dev_t *d, nuphase_buffer_mask_t mask, nu
     hd_ptr_array[i] = &headers[i]; 
   }
 
-  return nuphase_read_multiple_ptr(d,mask,hd_ptr_array, ev_ptr_array); 
+  return beacon_read_multiple_ptr(d,mask,hd_ptr_array, ev_ptr_array); 
 }
 
 
@@ -1439,7 +1439,7 @@ int nuphase_read_multiple_array(nuphase_dev_t *d, nuphase_buffer_mask_t mask, nu
 
 
 
-int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nuphase_header_t ** hd, nuphase_event_t ** ev)
+int beacon_read_multiple_ptr(beacon_dev_t * d, beacon_buffer_mask_t mask, beacon_header_t ** hd, beacon_event_t ** ev)
 {
   int ibuf,ichan;
   int iout = 0; 
@@ -1486,7 +1486,7 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
       if (ibd == 0) 
       {
         d->event_counter++; 
-        d->next_read_buffer = (d->next_read_buffer + 1) %NP_NUM_BUFFER; 
+        d->next_read_buffer = (d->next_read_buffer + 1) %BN_NUM_BUFFER; 
       }
       CHK(buffer_append(d, ibd,  buf_buffer[ibuf],0)) 
       d->current_buf[ibd] = ibuf; 
@@ -1604,7 +1604,7 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
         ev[iout]->event_number = hd[iout]->event_number; 
  
       }
-      else if (NP_MAX_BOARDS > 1)  //do some checks
+      else if (BN_MAX_BOARDS > 1)  //do some checks
       {
 
 
@@ -1639,7 +1639,7 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
       ev[iout]->board_id[ibd] = d->board_id[ibd]; 
 
       //now start to read the data 
-      for (ichan = 0; ichan < NP_NUM_CHAN; ichan++)
+      for (ichan = 0; ichan < BN_NUM_CHAN; ichan++)
       {
         if ( d->channel_read_mask[ibd] & ( 1 << ichan) )
         {
@@ -1658,7 +1658,7 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
           if (d->channel_read_mask[ibd] & (1 << ichan)) //TODO is this backwards?!??? 
           {
             CHK(buffer_append(d,ibd, buf_channel[ichan],0)) 
-            CHK(loop_over_chunks_half_duplex(d,ibd, d->buffer_length / (NP_SPI_BYTES * NP_NUM_CHUNK),1, &ev[iout]->data[ibd][ichan][0]))
+            CHK(loop_over_chunks_half_duplex(d,ibd, d->buffer_length / (BN_SPI_BYTES * BN_NUM_CHUNK),1, &ev[iout]->data[ibd][ichan][0]))
           }
           DONE(d); 
         }
@@ -1670,17 +1670,17 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
 
 
       //zero out things that don't make sense if there is no slave
-      if (NBD(d) < NP_MAX_BOARDS) 
+      if (NBD(d) < BN_MAX_BOARDS) 
       {
         int iibd; 
-        for (iibd = 0; iibd < NP_MAX_BOARDS; iibd++) 
+        for (iibd = 0; iibd < BN_MAX_BOARDS; iibd++) 
         {
           hd[iout]->readout_time[1] = 0; 
           hd[iout]->readout_time_ns[1] = 0; 
           hd[iout]->trig_time[1] = 0; 
           hd[iout]->deadtime[1] = 0; 
           hd[iout]->board_id[1] = 0; 
-          memset(ev[iout]->data[1],0, NP_NUM_CHAN * NP_MAX_WAVEFORM_LENGTH); 
+          memset(ev[iout]->data[1],0, BN_NUM_CHAN * BN_MAX_WAVEFORM_LENGTH); 
         }
 
       }
@@ -1703,7 +1703,7 @@ int nuphase_read_multiple_ptr(nuphase_dev_t * d, nuphase_buffer_mask_t mask, nup
 }
 
 
-int nuphase_clear_buffer(nuphase_dev_t *d, nuphase_buffer_mask_t mask) 
+int beacon_clear_buffer(beacon_dev_t *d, beacon_buffer_mask_t mask) 
 {
   USING(d); 
   int ret = mark_buffers_done(d,mask); 
@@ -1711,7 +1711,7 @@ int nuphase_clear_buffer(nuphase_dev_t *d, nuphase_buffer_mask_t mask)
   return ret; 
 }
 
-int nuphase_write(nuphase_dev_t *d, const uint8_t* buffer)
+int beacon_write(beacon_dev_t *d, const uint8_t* buffer)
 {
   int written = 0; 
   USING(d); 
@@ -1719,29 +1719,29 @@ int nuphase_write(nuphase_dev_t *d, const uint8_t* buffer)
   if (d->fd[1]) 
   written += do_write(d->fd[1], buffer); 
   DONE(d); 
-  return written == d->fd[1] ? 2 * NP_SPI_BYTES : NP_SPI_BYTES ? 0 : -1; 
+  return written == d->fd[1] ? 2 * BN_SPI_BYTES : BN_SPI_BYTES ? 0 : -1; 
 }
 
-int nuphase_read(nuphase_dev_t *d,uint8_t* buffer, nuphase_which_board_t which)
+int beacon_read(beacon_dev_t *d,uint8_t* buffer, beacon_which_board_t which)
 {
   int got = 0; 
   USING(d); 
   got = do_read(d->fd[which], buffer); 
   DONE(d); 
-  return got == NP_SPI_BYTES ? 0 : -1; 
+  return got == BN_SPI_BYTES ? 0 : -1; 
 }
 
 
 
-int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * st, nuphase_which_board_t which) 
+int beacon_read_status(beacon_dev_t *d, beacon_status_t * st, beacon_which_board_t which) 
 {
   //TODO: fill in deadtime when I figure out how. 
   int i; 
   int ret = 0; 
   struct timespec now; 
-  uint8_t scaler_registers[N_SCALER_REGISTERS][NP_SPI_BYTES]; 
+  uint8_t scaler_registers[N_SCALER_REGISTERS][BN_SPI_BYTES]; 
 
-  uint8_t latched_pps[2][NP_SPI_BYTES]; 
+  uint8_t latched_pps[2][BN_SPI_BYTES]; 
 
   st->board_id = d->board_id[which]; 
 
@@ -1768,28 +1768,28 @@ int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * st, nuphase_which_b
   ret+= buffer_send(d,which); 
   DONE(d); 
 
-  ret+= nuphase_get_thresholds(d, &st->trigger_thresholds[0]); 
+  ret+= beacon_get_thresholds(d, &st->trigger_thresholds[0]); 
 
   if (ret) return ret; 
   st->deadtime = 0; //TODO 
 
   st->dynamic_beam_mask = be32toh(st->dynamic_beam_mask) & 0xffffff;
 
-  uint16_t scaler_values[NP_NUM_SCALERS*(1+NP_NUM_BEAMS)];
+  uint16_t scaler_values[BN_NUM_SCALERS*(1+BN_NUM_BEAMS)];
   int sv_ind = 0;
   for(i=0; i < N_SCALER_REGISTERS; i++){
     uint16_t first = ((uint16_t)scaler_registers[i][3])  |  (((uint16_t) scaler_registers[i][2] & 0xf ) << 8); 
     uint16_t second =((uint16_t)(scaler_registers[i][2] >> 4)) |  (((uint16_t) scaler_registers[i][1] ) << 4); 
     scaler_values[sv_ind] = first;
-    if(sv_ind + 1 < NP_NUM_SCALERS*(1+NP_NUM_BEAMS)){
+    if(sv_ind + 1 < BN_NUM_SCALERS*(1+BN_NUM_BEAMS)){
       scaler_values[sv_ind+1] = second;
     }
     sv_ind += 2;
   }
 
-  for(i = 0; i < NP_NUM_SCALERS*(1+NP_NUM_BEAMS); i++){
-    int which_scaler = i / (1+NP_NUM_BEAMS);
-    int which_channel = i % (1+NP_NUM_BEAMS);
+  for(i = 0; i < BN_NUM_SCALERS*(1+BN_NUM_BEAMS); i++){
+    int which_scaler = i / (1+BN_NUM_BEAMS);
+    int which_channel = i % (1+BN_NUM_BEAMS);
 
     if(which_channel==0){
       st->global_scalers[which_scaler] = scaler_values[i];
@@ -1805,8 +1805,8 @@ int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * st, nuphase_which_b
 /*     uint16_t second =((uint16_t)(scaler_registers[i][2] >> 4)) |  (((uint16_t) scaler_registers[i][1] ) << 4);  */
 /* //    printf("%d %u %u\n", i, first, second);  */
 
-/*     int which_scaler = i / ((1 + NP_NUM_BEAMS)/2); */
-/*     int which_channel = i % (( 1 + NP_NUM_BEAMS)/2); */
+/*     int which_scaler = i / ((1 + BN_NUM_BEAMS)/2); */
+/*     int which_channel = i % (( 1 + BN_NUM_BEAMS)/2); */
 
 /*     if (which_channel == 0)  */
 /*     { */
@@ -1820,7 +1820,7 @@ int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * st, nuphase_which_b
 /*       // since the final register is padded with zeros because */
 /*       // there's an odd number of (1+beams), we need to not */
 /*       // write this padding past the end fo the beam_scalers array */
-/*       if(2*which_channel < NP_NUM_BEAMS){ */
+/*       if(2*which_channel < BN_NUM_BEAMS){ */
 /* 	st->beam_scalers[which_scaler][2*which_channel] = second; */
 /*       } */
 /*     } */
@@ -1869,10 +1869,10 @@ static struct timespec avg_time(struct timespec A, struct timespec B)
  *
  *
  */
-int nuphase_reset(nuphase_dev_t * d, nuphase_reset_t reset_type)
+int beacon_reset(beacon_dev_t * d, beacon_reset_t reset_type)
 {
   
-//  const nuphase_config_t * cfgs[NP_MAX_BOARDS]; 
+//  const beacon_config_t * cfgs[BN_MAX_BOARDS]; 
 //  cfgs[0] = c; 
 //  cfgs[1] = cslave; 
 
@@ -1883,7 +1883,7 @@ int nuphase_reset(nuphase_dev_t * d, nuphase_reset_t reset_type)
   // if we are doing a global, almost global or ADC reset. 
   // We need to verify that these sleep delays are good.
   
-  if (reset_type == NP_RESET_GLOBAL) 
+  if (reset_type == BN_RESET_GLOBAL) 
   {
     if (synchronized_command(d,buf_reset_all,0,0,0))
     {
@@ -1896,13 +1896,13 @@ int nuphase_reset(nuphase_dev_t * d, nuphase_reset_t reset_type)
     sleep(20); 
     fprintf(stderr,"...done\n"); 
   }
-  else if (reset_type == NP_RESET_ALMOST_GLOBAL)
+  else if (reset_type == BN_RESET_ALMOST_GLOBAL)
   {
     for (ibd = 0; ibd < NBD(d); ibd++)
     {
       wrote = do_write(d->fd[ibd], buf_reset_almost_all); 
 
-      if (wrote != NP_SPI_BYTES) 
+      if (wrote != BN_SPI_BYTES) 
       {
         return 1;
       }
@@ -1928,7 +1928,7 @@ int nuphase_reset(nuphase_dev_t * d, nuphase_reset_t reset_type)
    **/
 
 
-  if (nuphase_phased_trigger_readout(d,0)) 
+  if (beacon_phased_trigger_readout(d,0)) 
   {
         fprintf(stderr, "Unable to turn off readout. Aborting reset\n"); 
         return 1; 
@@ -1940,7 +1940,7 @@ int nuphase_reset(nuphase_dev_t * d, nuphase_reset_t reset_type)
     wrote = do_write (d->fd[ibd], buf_clear[0xf]); 
     wrote += do_write (d->fd[ibd], buf_reset_buf); 
 
-    if (wrote != 2*NP_SPI_BYTES) 
+    if (wrote != 2*BN_SPI_BYTES) 
     {
         fprintf(stderr, "Unable to clear buffers. Aborting reset\n"); 
         return 1; 
@@ -1964,25 +1964,25 @@ int nuphase_reset(nuphase_dev_t * d, nuphase_reset_t reset_type)
    *
    *   disable the cal pulser
    */
-  if (reset_type >= NP_RESET_CALIBRATE) 
+  if (reset_type >= BN_RESET_CALIBRATE) 
   {
     int happy = 0; 
     int misery = 0; 
-    wrote = NP_SPI_BYTES; 
+    wrote = BN_SPI_BYTES; 
 
     //temporarily set the buffer length to the maximum 
     uint16_t old_buf_length = d->buffer_length; 
     d->buffer_length = 1024; 
 
     //we need to turn off the phased trigger to not overwhelm ARA 
-    nuphase_trigger_enable_t old_enables = nuphase_get_trigger_enables(d, MASTER); 
-    nuphase_trigger_enable_t tmp_enables; 
+    beacon_trigger_enable_t old_enables = beacon_get_trigger_enables(d, MASTER); 
+    beacon_trigger_enable_t tmp_enables; 
     memcpy(&tmp_enables, &old_enables, sizeof(old_enables)); 
     tmp_enables.enable_beamforming = 0; 
-    nuphase_set_trigger_enables(d, tmp_enables, MASTER); 
+    beacon_set_trigger_enables(d, tmp_enables, MASTER); 
 
     //release the calpulser 
-    nuphase_calpulse(d, 3); 
+    beacon_calpulse(d, 3); 
 
     while (!happy) 
     {
@@ -2011,18 +2011,18 @@ int nuphase_reset(nuphase_dev_t * d, nuphase_reset_t reset_type)
         else
         {
           wrote = do_write(d->fd[0], buf_adc_clk_rst); 
-          if ( wrote != NP_SPI_BYTES) 
+          if ( wrote != BN_SPI_BYTES) 
           {
-            fprintf(stderr,"When adc_clk_rst, expected %d got %d\n", NP_SPI_BYTES, wrote);  
+            fprintf(stderr,"When adc_clk_rst, expected %d got %d\n", BN_SPI_BYTES, wrote);  
             continue; 
           }
         }
       }
 
 
-      nuphase_buffer_mask_t mask; 
-      nuphase_sw_trigger(d); 
-      nuphase_wait(d,&mask,1,MASTER); 
+      beacon_buffer_mask_t mask; 
+      beacon_sw_trigger(d); 
+      beacon_wait(d,&mask,1,MASTER); 
       int nbuf = __builtin_popcount(mask); 
 
       if (!nbuf)
@@ -2039,13 +2039,13 @@ int nuphase_reset(nuphase_dev_t * d, nuphase_reset_t reset_type)
 
 
       //read in the first buffer (should really be  0 most of the time.) 
-      nuphase_read_single(d, __builtin_ctz(mask),  &d->calib_hd, &d->calib_ev); 
+      beacon_read_single(d, __builtin_ctz(mask),  &d->calib_hd, &d->calib_ev); 
 
       // now loop over the samples and get the things we need 
-      uint16_t min_max_i = NP_MAX_WAVEFORM_LENGTH; 
+      uint16_t min_max_i = BN_MAX_WAVEFORM_LENGTH; 
       uint16_t max_max_i = 0; 
       uint8_t min_max_v = 255; 
-      uint16_t max_i[2][NP_NUM_CHAN];
+      uint16_t max_i[2][BN_NUM_CHAN];
       memset(max_i,0,sizeof(max_i)); 
 
       //loop through and find where the maxes are
@@ -2053,12 +2053,12 @@ int nuphase_reset(nuphase_dev_t * d, nuphase_reset_t reset_type)
 
       for (ibd = 0; ibd < NBD(d); ibd++)
       {
-        for (ichan = 0; ichan <NP_NUM_CHAN; ichan++)
+        for (ichan = 0; ichan <BN_NUM_CHAN; ichan++)
         {
           if ( ((1<<ichan) & d->channel_read_mask[ibd])  == 0) continue; 
 
           uint8_t max_v = 0; 
-          for (isamp = 0; isamp < NP_MAX_WAVEFORM_LENGTH; isamp++)
+          for (isamp = 0; isamp < BN_MAX_WAVEFORM_LENGTH; isamp++)
           {
             if ( d->calib_ev.data[ibd][ichan][isamp] > max_v)
             {
@@ -2094,7 +2094,7 @@ int nuphase_reset(nuphase_dev_t * d, nuphase_reset_t reset_type)
       //otherwise, we are in business! Take averages of channel for each adc
       for (ibd = 0; ibd < NBD(d); ibd++)
       {
-        for (iadc = 0; iadc < NP_NUM_CHAN/2; iadc++)
+        for (iadc = 0; iadc < BN_NUM_CHAN/2; iadc++)
         {
           if (((1 << 2*iadc) & d->channel_read_mask[ibd])  == 0) continue; 
 
@@ -2103,11 +2103,11 @@ int nuphase_reset(nuphase_dev_t * d, nuphase_reset_t reset_type)
           
           if (delay > 0) 
           {
-            uint8_t buf[NP_SPI_BYTES] = {REG_ADC_DELAYS + iadc, 0, (delay & 0xf) | (1 << 4) , (delay & 0xf)  | (1 << 4) }; 
+            uint8_t buf[BN_SPI_BYTES] = {REG_ADC_DELAYS + iadc, 0, (delay & 0xf) | (1 << 4) , (delay & 0xf)  | (1 << 4) }; 
             wrote = do_write(d->fd[ibd], buf); 
-            if (wrote < NP_SPI_BYTES) 
+            if (wrote < BN_SPI_BYTES) 
             {
-              fprintf(stderr,"Should have written %d but wrote %d\n", NP_SPI_BYTES, wrote); 
+              fprintf(stderr,"Should have written %d but wrote %d\n", BN_SPI_BYTES, wrote); 
               continue;//why not? 
             }
           }
@@ -2119,7 +2119,7 @@ int nuphase_reset(nuphase_dev_t * d, nuphase_reset_t reset_type)
     }
 
     d->buffer_length = old_buf_length; 
-    nuphase_calpulse(d, 0); 
+    beacon_calpulse(d, 0); 
 
     // reclear the buffers 
     for (ibd = 0; ibd < NBD(d); ibd++) 
@@ -2127,7 +2127,7 @@ int nuphase_reset(nuphase_dev_t * d, nuphase_reset_t reset_type)
       do_write(d->fd[ibd], buf_clear[0xf]); 
     }
 
-    nuphase_set_trigger_enables(d, old_enables, MASTER); 
+    beacon_set_trigger_enables(d, old_enables, MASTER); 
     if (!happy) return -1; 
   }
 
@@ -2150,7 +2150,7 @@ int nuphase_reset(nuphase_dev_t * d, nuphase_reset_t reset_type)
      clock_gettime(CLOCK_REALTIME,&tbefore); 
      wrote = do_write(d->fd[0], buf_reset_counter); 
      clock_gettime(CLOCK_REALTIME,&tafter); 
-     if (wrote != NP_SPI_BYTES) 
+     if (wrote != BN_SPI_BYTES) 
      {
         fprintf(stderr, "Unable to reset counters. Aborting reset\n"); 
         return 1; 
@@ -2166,7 +2166,7 @@ int nuphase_reset(nuphase_dev_t * d, nuphase_reset_t reset_type)
    return ret ; 
 }
 
-int nuphase_set_spi_clock(nuphase_dev_t *d, unsigned clock) 
+int beacon_set_spi_clock(beacon_dev_t *d, unsigned clock) 
 {
 
   int ibd;
@@ -2181,14 +2181,14 @@ int nuphase_set_spi_clock(nuphase_dev_t *d, unsigned clock)
   return 0; //check? 
 }
 
-int nuphase_set_toggle_chipselect(nuphase_dev_t *d, int cs) 
+int beacon_set_toggle_chipselect(beacon_dev_t *d, int cs) 
 {
   d->cs_change = cs;
   setup_xfers(d); 
   return 0; 
 }
 
-int nuphase_set_transaction_delay(nuphase_dev_t *d, unsigned delay) 
+int beacon_set_transaction_delay(beacon_dev_t *d, unsigned delay) 
 {
   d->delay_us = delay;
   setup_xfers(d); 
@@ -2196,11 +2196,11 @@ int nuphase_set_transaction_delay(nuphase_dev_t *d, unsigned delay)
 }
 
 
-int nuphase_get_trigger_output(nuphase_dev_t *d, nuphase_trigger_output_config_t * config) 
+int beacon_get_trigger_output(beacon_dev_t *d, beacon_trigger_output_config_t * config) 
 {
 
-  uint8_t cfg_buf[NP_SPI_BYTES]; 
-  int ret = nuphase_read_register(d, REG_TRIGOUT_CONFIG, cfg_buf, MASTER); 
+  uint8_t cfg_buf[BN_SPI_BYTES]; 
+  int ret = beacon_read_register(d, REG_TRIGOUT_CONFIG, cfg_buf, MASTER); 
   
   config->width = cfg_buf[2]; 
   config->enable = cfg_buf[3] & 1; 
@@ -2211,9 +2211,9 @@ int nuphase_get_trigger_output(nuphase_dev_t *d, nuphase_trigger_output_config_t
 }
 
 
-int nuphase_configure_trigger_output(nuphase_dev_t *d, nuphase_trigger_output_config_t config) 
+int beacon_configure_trigger_output(beacon_dev_t *d, beacon_trigger_output_config_t config) 
 {
-  uint8_t cfg_buf[NP_SPI_BYTES] = { REG_TRIGOUT_CONFIG,0, config.width,
+  uint8_t cfg_buf[BN_SPI_BYTES] = { REG_TRIGOUT_CONFIG,0, config.width,
                                     (config.enable & 1 ) | ((config.polarity & 1) <<1) 
                                      | ((config.send_1Hz & 1) << 2) 
                                   }; 
@@ -2221,25 +2221,25 @@ int nuphase_configure_trigger_output(nuphase_dev_t *d, nuphase_trigger_output_co
   USING(d); 
   int written = do_write(d->fd[MASTER], cfg_buf); 
   DONE(d); 
-  return written != NP_SPI_BYTES; 
+  return written != BN_SPI_BYTES; 
 }
-int nuphase_configure_ext_trigger_in(nuphase_dev_t * d, nuphase_ext_input_config_t config) 
+int beacon_configure_ext_trigger_in(beacon_dev_t * d, beacon_ext_input_config_t config) 
 {
-  uint8_t cfg_buf[NP_SPI_BYTES] = { REG_EXT_INPUT_CONFIG, 
+  uint8_t cfg_buf[BN_SPI_BYTES] = { REG_EXT_INPUT_CONFIG, 
                                    config.gate_width >> 8,
                                    config.gate_width & 8,
                                    (config.use_as_trigger & 1) | ((config.gate_enable & 1)<<1)} ; 
   USING(d); 
   int written = do_write(d->fd[MASTER], cfg_buf); 
   DONE(d); 
-  return written != NP_SPI_BYTES; 
+  return written != BN_SPI_BYTES; 
 }
 
 /** get the external trigger config */ 
-int nuphase_get_ext_trigger_in(nuphase_dev_t * d, nuphase_ext_input_config_t * config) 
+int beacon_get_ext_trigger_in(beacon_dev_t * d, beacon_ext_input_config_t * config) 
 {
-  uint8_t cfg_buf[NP_SPI_BYTES]; 
-  int ret = nuphase_read_register(d, REG_EXT_INPUT_CONFIG, cfg_buf, MASTER); 
+  uint8_t cfg_buf[BN_SPI_BYTES]; 
+  int ret = beacon_read_register(d, REG_EXT_INPUT_CONFIG, cfg_buf, MASTER); 
 
   config->use_as_trigger = cfg_buf[3] & 1; 
   config->gate_enable = (cfg_buf[3] >> 1)  & 1; 
@@ -2248,35 +2248,35 @@ int nuphase_get_ext_trigger_in(nuphase_dev_t * d, nuphase_ext_input_config_t * c
 }
 
 
-int nuphase_enable_verification_mode(nuphase_dev_t * d, int mode) 
+int beacon_enable_verification_mode(beacon_dev_t * d, int mode) 
 {
-  uint8_t buf[NP_SPI_BYTES] = { REG_VERIFICATION_MODE,0,0, mode & 1}; 
+  uint8_t buf[BN_SPI_BYTES] = { REG_VERIFICATION_MODE,0,0, mode & 1}; 
   USING(d);
   int written = do_write(d->fd[MASTER], buf); 
   DONE(d); 
-  return written != NP_SPI_BYTES;
+  return written != BN_SPI_BYTES;
 }
 
-int nuphase_query_verification_mode(nuphase_dev_t * d) 
+int beacon_query_verification_mode(beacon_dev_t * d) 
 {
-  uint8_t buf[NP_SPI_BYTES]; 
-  int ret = nuphase_read_register(d,REG_VERIFICATION_MODE,buf,MASTER); 
+  uint8_t buf[BN_SPI_BYTES]; 
+  int ret = beacon_read_register(d,REG_VERIFICATION_MODE,buf,MASTER); 
   if (ret) return -1; 
   return buf[3] & 1; 
 }
 
-int nuphase_set_poll_interval(nuphase_dev_t * d, uint16_t interval)
+int beacon_set_poll_interval(beacon_dev_t * d, uint16_t interval)
 {
   d->poll_interval = interval ;
   return 0; 
 }
 
 
-int nuphase_set_trigger_delays(nuphase_dev_t *d, const uint8_t * delays)
+int beacon_set_trigger_delays(beacon_dev_t *d, const uint8_t * delays)
 {
-  uint8_t del_012[NP_SPI_BYTES] = {REG_TRIG_DELAY_012, delays[2], delays[1], delays[0]}; 
-  uint8_t del_345[NP_SPI_BYTES] = {REG_TRIG_DELAY_345, delays[5], delays[4], delays[3]}; 
-  uint8_t del_67[NP_SPI_BYTES] = {REG_TRIG_DELAY_67, 0, delays[7], delays[6]}; 
+  uint8_t del_012[BN_SPI_BYTES] = {REG_TRIG_DELAY_012, delays[2], delays[1], delays[0]}; 
+  uint8_t del_345[BN_SPI_BYTES] = {REG_TRIG_DELAY_345, delays[5], delays[4], delays[3]}; 
+  uint8_t del_67[BN_SPI_BYTES] = {REG_TRIG_DELAY_67, 0, delays[7], delays[6]}; 
   int ret = 0;  
   USING(d); 
   buffer_append(d, MASTER, del_012,0); 
@@ -2288,11 +2288,11 @@ int nuphase_set_trigger_delays(nuphase_dev_t *d, const uint8_t * delays)
 }
 
 
-int nuphase_get_trigger_delays(nuphase_dev_t *d, uint8_t * delays)
+int beacon_get_trigger_delays(beacon_dev_t *d, uint8_t * delays)
 {
-  uint8_t del_012[NP_SPI_BYTES] = {0,0,0,0}; 
-  uint8_t del_345[NP_SPI_BYTES] = {0,0,0,0};
-  uint8_t del_67[NP_SPI_BYTES] =  {0,0,0,0}; 
+  uint8_t del_012[BN_SPI_BYTES] = {0,0,0,0}; 
+  uint8_t del_345[BN_SPI_BYTES] = {0,0,0,0};
+  uint8_t del_67[BN_SPI_BYTES] =  {0,0,0,0}; 
   int ret = 0;  
 
   USING(d); 
@@ -2314,30 +2314,30 @@ int nuphase_get_trigger_delays(nuphase_dev_t *d, uint8_t * delays)
   return  ret; 
 }
 
-/* int nuphase_set_min_threshold(nuphase_dev_t * d, uint32_t min)  */
+/* int beacon_set_min_threshold(beacon_dev_t * d, uint32_t min)  */
 /* { */
 /*   d->min_threshold = min;  */
 /*   return 0;  */
 /* } */
 
 
-int nuphase_set_trigger_path_low_pass(nuphase_dev_t * d, int on) 
+int beacon_set_trigger_path_low_pass(beacon_dev_t * d, int on) 
 {
 
   int ret; 
-  uint8_t buf[NP_SPI_BYTES] = { REG_TRIGGER_LOWPASS, 0, 0, on & 1 }; 
+  uint8_t buf[BN_SPI_BYTES] = { REG_TRIGGER_LOWPASS, 0, 0, on & 1 }; 
   USING(d); 
   ret = do_write(d->fd[0], buf); 
   DONE(d); 
-  return ret == NP_SPI_BYTES ? 0 : 1; 
+  return ret == BN_SPI_BYTES ? 0 : 1; 
 }
 
-int nuphase_get_trigger_path_low_pass(nuphase_dev_t * d) 
+int beacon_get_trigger_path_low_pass(beacon_dev_t * d) 
 {
 
   int ret; 
-  uint8_t buf[NP_SPI_BYTES]; 
-  ret = nuphase_read_register(d, REG_TRIGGER_LOWPASS, buf, MASTER); 
+  uint8_t buf[BN_SPI_BYTES]; 
+  ret = beacon_read_register(d, REG_TRIGGER_LOWPASS, buf, MASTER); 
   
   if (ret) 
   {
@@ -2348,11 +2348,11 @@ int nuphase_get_trigger_path_low_pass(nuphase_dev_t * d)
 }
 
 
-int nuphase_set_dynamic_masking(nuphase_dev_t * d, int enable, uint8_t threshold, uint16_t holdoff) 
+int beacon_set_dynamic_masking(beacon_dev_t * d, int enable, uint8_t threshold, uint16_t holdoff) 
 {
   int ret; 
-  uint8_t buf0[NP_SPI_BYTES] = { REG_DYN_MASK, 0, enable & 1, threshold }; 
-  uint8_t buf1[NP_SPI_BYTES] = { REG_DYN_HOLDOFF, 0, holdoff >> 8 , holdoff & 0xff }; 
+  uint8_t buf0[BN_SPI_BYTES] = { REG_DYN_MASK, 0, enable & 1, threshold }; 
+  uint8_t buf1[BN_SPI_BYTES] = { REG_DYN_HOLDOFF, 0, holdoff >> 8 , holdoff & 0xff }; 
   USING(d); 
   buffer_append(d, MASTER, buf0,0); 
   buffer_append(d, MASTER, buf1,0); 
@@ -2361,11 +2361,11 @@ int nuphase_set_dynamic_masking(nuphase_dev_t * d, int enable, uint8_t threshold
   return ret; 
 }
 
-int nuphase_get_dynamic_masking(nuphase_dev_t * d, int * enable, uint8_t * threshold, uint16_t * holdoff) 
+int beacon_get_dynamic_masking(beacon_dev_t * d, int * enable, uint8_t * threshold, uint16_t * holdoff) 
 {
   int ret; 
-  uint8_t buf0[NP_SPI_BYTES];
-  uint8_t buf1[NP_SPI_BYTES]; 
+  uint8_t buf0[BN_SPI_BYTES];
+  uint8_t buf1[BN_SPI_BYTES]; 
   USING(d); 
   append_read_register(d, MASTER, REG_DYN_MASK,buf0); 
   append_read_register(d, MASTER, REG_DYN_HOLDOFF,buf1); 

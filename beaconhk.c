@@ -1,4 +1,4 @@
-#include "nuphasehk.h"
+#include "beaconhk.h"
 #include "bbb_ain.h" 
 #include "bbb_gpio.h" 
 
@@ -63,22 +63,22 @@ static int setup_gpio()
 //---------------------------------------------------
 // Read in the GPIO state
 // -------------------------------------------------
-static nuphase_gpio_power_state_t query_gpio_state() 
+static beacon_gpio_power_state_t query_gpio_state() 
 {
 
   if (!gpios_are_setup) setup_gpio(); 
-  nuphase_gpio_power_state_t state = 0; 
+  beacon_gpio_power_state_t state = 0; 
 
   //master is on as an input, I think
   if (!master_fpga_ctl || bbb_gpio_get(master_fpga_ctl) )
   {
-    state = state | NP_FPGA_POWER_MASTER; 
+    state = state | BN_FPGA_POWER_MASTER; 
   }
   
   //active low 
   if (comm_ctl && bbb_gpio_get(comm_ctl) == 0)
   {
-    state = state | NP_SPI_ENABLE; 
+    state = state | BN_SPI_ENABLE; 
   }
 
 
@@ -133,7 +133,7 @@ static uint32_t get_free_kB()
 //----------------------------------------
 //The main hk update method 
 //----------------------------------------
-int nuphase_hk(nuphase_hk_t * hk) 
+int beacon_hk(beacon_hk_t * hk) 
 {
 
   /* first the ASPS-DAQ bits, using the specified method. */
@@ -171,21 +171,21 @@ int nuphase_hk(nuphase_hk_t * hk)
 }
 
 
-int nuphase_set_gpio_power_state ( nuphase_gpio_power_state_t state, nuphase_gpio_power_state_t mask) 
+int beacon_set_gpio_power_state ( beacon_gpio_power_state_t state, beacon_gpio_power_state_t mask) 
 {
   if (! gpios_are_setup) setup_gpio(); 
 
   int ret = 0; 
 
-  if (mask & NP_FPGA_POWER_MASTER) 
+  if (mask & BN_FPGA_POWER_MASTER) 
   {
-    ret += !master_fpga_ctl || bbb_gpio_set( master_fpga_ctl, (state & NP_FPGA_POWER_MASTER)); 
+    ret += !master_fpga_ctl || bbb_gpio_set( master_fpga_ctl, (state & BN_FPGA_POWER_MASTER)); 
   }
 
-  if (mask & NP_SPI_ENABLE) 
+  if (mask & BN_SPI_ENABLE) 
   {
     //this one is active low
-    ret += !comm_ctl || bbb_gpio_set( comm_ctl, !(state & NP_SPI_ENABLE) ); 
+    ret += !comm_ctl || bbb_gpio_set( comm_ctl, !(state & BN_SPI_ENABLE) ); 
   }
 
   return ret; 
@@ -201,7 +201,7 @@ static void smart_sleep(int amount)
 ///////////////////////////////////////////
 ////  FPGA reboot
 ////////////////////////////////////////////
-int nuphase_reboot_fpga_power(int sleep_after_off, int sleep_after_master_on)
+int beacon_reboot_fpga_power(int sleep_after_off, int sleep_after_master_on)
 {
   if (!gpios_are_setup) setup_gpio(); 
 
@@ -218,7 +218,7 @@ int nuphase_reboot_fpga_power(int sleep_after_off, int sleep_after_master_on)
 //    deinit
 //-----------------------------------------
 __attribute__((destructor)) 
-static void nuphase_hk_destroy() 
+static void beacon_hk_destroy() 
 {
   //do NOT unexport any of these!
   if (master_fpga_ctl) bbb_gpio_close(master_fpga_ctl,0); 

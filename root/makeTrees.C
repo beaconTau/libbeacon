@@ -1,4 +1,4 @@
-#include "../nuphase.h" 
+#include "../beacon.h" 
 #include "zlib.h"
 
 void makeTrees (int run, const char * base_path = "/home/radio/data_archive", const char * outpath = "/home/radio/stupidly_rootified")
@@ -16,7 +16,7 @@ void makeTrees (int run, const char * base_path = "/home/radio/data_archive", co
 
 
   TFile fhd(str.Data(),"RECREATE"); 
-  nuphase_header_t *hd = new nuphase_header_t; 
+  beacon_header_t *hd = new beacon_header_t; 
   TTree * thd = new TTree("header","header"); 
   thd->Branch("hd",&hd); 
 
@@ -30,7 +30,7 @@ void makeTrees (int run, const char * base_path = "/home/radio/data_archive", co
      printf("Processing %s\n", str.Data());
      gzFile gzf = gzopen(str.Data(),"r"); 
      fhd.cd(); 	
-     while (!nuphase_header_gzread(gzf, hd)) thd->Fill(); 
+     while (!beacon_header_gzread(gzf, hd)) thd->Fill(); 
      gzclose(gzf); 
   }
   
@@ -50,7 +50,7 @@ void makeTrees (int run, const char * base_path = "/home/radio/data_archive", co
 
 
   TFile fst(str.Data(),"RECREATE"); 
-  nuphase_status_t *st = new nuphase_status_t; 
+  beacon_status_t *st = new beacon_status_t; 
 
   TTree * tst = new TTree("status","status"); 
   tst->Branch("status",&st); 
@@ -64,7 +64,7 @@ void makeTrees (int run, const char * base_path = "/home/radio/data_archive", co
      printf("Processing %s\n", str.Data());
      gzFile gzf = gzopen(str.Data(),"r"); 
      fst.cd();
-     while (!nuphase_status_gzread(gzf, st)) tst->Fill(); 
+     while (!beacon_status_gzread(gzf, st)) tst->Fill(); 
      gzclose(gzf); 
   }
  

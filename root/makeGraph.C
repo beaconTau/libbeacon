@@ -1,6 +1,6 @@
-#include "../nuphase.h" 
+#include "../beacon.h" 
 
-TGraph *  makeGraph(const nuphase_event_t * ev, int channel, TGraph * g = 0)
+TGraph *  makeGraph(const beacon_event_t * ev, int channel, TGraph * g = 0)
 {
   if (!g) g = new TGraph(ev->buffer_length); 
 

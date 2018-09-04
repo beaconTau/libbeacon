@@ -1,4 +1,4 @@
-#include "nuphase.h" 
+#include "beacon.h" 
 #include <stdio.h> 
 #include "zlib.h"
 #include "string.h" 
@@ -16,11 +16,11 @@ int main(int nargs, char ** args)
 
 
   FILE * f = fopen(args[1], "r"); 
-  nuphase_hk_t hk;
+  beacon_hk_t hk;
 
   fread(&hk, sizeof(hk),1,f); 
 
-  nuphase_hk_print(stdout, &hk); 
+  beacon_hk_print(stdout, &hk); 
   fclose(f); 
 
   return 0; 

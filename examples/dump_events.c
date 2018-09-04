@@ -1,4 +1,4 @@
-#include "nuphase.h" 
+#include "beacon.h" 
 #include <stdio.h> 
 #include "zlib.h"
 #include <string.h> 
@@ -19,11 +19,11 @@ int main(int nargs, char ** args)
   if (!is_zipped)
   {
     FILE * f = fopen(args[1], "r"); 
-    nuphase_event_t ev;
+    beacon_event_t ev;
 
-    while (!nuphase_event_read(f,&ev))
+    while (!beacon_event_read(f,&ev))
     {
-        nuphase_event_print(stdout, &ev, ','); 
+        beacon_event_print(stdout, &ev, ','); 
     }
 
     fclose(f); 
@@ -31,11 +31,11 @@ int main(int nargs, char ** args)
   else
   {
     gzFile f = gzopen(args[1], "r"); 
-    nuphase_event_t ev;
+    beacon_event_t ev;
 
-    while (!nuphase_event_gzread(f,&ev))
+    while (!beacon_event_gzread(f,&ev))
     {
-        nuphase_event_print(stdout, &ev, ','); 
+        beacon_event_print(stdout, &ev, ','); 
     }
 
     gzclose(f); 

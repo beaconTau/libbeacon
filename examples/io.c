@@ -1,4 +1,4 @@
-#include "nuphase.h" 
+#include "beacon.h" 
 #include <string.h>
 #include <math.h> 
 
@@ -10,8 +10,8 @@ int main(int nargs, const char ** args)
   const char * fname = "file.dat";
   if (nargs > 1) fname = args[1]; 
 
-  nuphase_header_t hd; 
-  nuphase_event_t ev; 
+  beacon_header_t hd; 
+  beacon_event_t ev; 
   memset(&ev,0,sizeof(ev)); 
   memset(&hd,0,sizeof(hd)); 
 
@@ -45,7 +45,7 @@ int main(int nargs, const char ** args)
   hd.calpulser = 0; 
 
 
-//  nuphase_header_print(stdout, &hd); 
+//  beacon_header_print(stdout, &hd); 
 
 
   //fill a nonsene event
@@ -62,19 +62,19 @@ int main(int nargs, const char ** args)
     }
   }
 
-//  nuphase_print_event(stdout,&ev,'\t'); 
+//  beacon_print_event(stdout,&ev,'\t'); 
 
 
   FILE * f = fopen(fname,"w"); 
-  printf("nuphase_header_write returned: %x\n", nuphase_header_write(f, &hd)); 
-  printf("nuphase_event_write returned: %x\n", nuphase_event_write(f, &ev)); 
+  printf("beacon_header_write returned: %x\n", beacon_header_write(f, &hd)); 
+  printf("beacon_event_write returned: %x\n", beacon_event_write(f, &ev)); 
   fclose(f); 
 
-  nuphase_header_t hd2; 
-  nuphase_event_t ev2; 
+  beacon_header_t hd2; 
+  beacon_event_t ev2; 
   f = fopen(fname,"r"); 
-  printf("nuphase_header_read returned: %x\n", nuphase_header_read(f, &hd2)); 
-  printf("nuphase_event_read returned: %x\n", nuphase_event_read(f, &ev2)); 
+  printf("beacon_header_read returned: %x\n", beacon_header_read(f, &hd2)); 
+  printf("beacon_event_read returned: %x\n", beacon_event_read(f, &ev2)); 
 
 
   fclose(f); 
@@ -83,9 +83,9 @@ int main(int nargs, const char ** args)
   printf("memcmp(hd,hd2) returned: %d\n", memcmp(&hd, &hd2, sizeof(hd))); 
   printf("memcmp(ev,ev2) returned: %d\n", memcmp(&ev, &ev2, sizeof(ev))); 
 
-  nuphase_header_print(stdout, &hd2); 
-  nuphase_event_print(stdout, &ev,'\t'); 
-  nuphase_event_print(stdout, &ev2,'\t'); 
+  beacon_header_print(stdout, &hd2); 
+  beacon_event_print(stdout, &ev,'\t'); 
+  beacon_event_print(stdout, &ev2,'\t'); 
 
 
   return 0; 

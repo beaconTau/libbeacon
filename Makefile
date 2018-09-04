@@ -15,7 +15,7 @@ LD=gcc
 CFLAGS+=-fPIC -g -Wall -Wextra  -D_GNU_SOURCE -O2 -Werror
 LDFLAGS+= -lz -g
 
-DAQ_LDFLAGS+= -lpthread -L./ -lnuphase -g 
+DAQ_LDFLAGS+= -lpthread -L./ -lbeacon -g 
 
 
 ifeq ($(SPI_DEBUG),1)
@@ -27,7 +27,7 @@ ifeq ($(CHEAT_READ_THRESHOLDS),1)
 endif
 
 
-PREFIX=/nuphase
+PREFIX=/beacon
 LIBDIR=lib 
 INCLUDEDIR=include
 
@@ -35,20 +35,20 @@ INCLUDEDIR=include
 
 
 
-HEADERS = nuphase.h 
-OBJS = nuphase.o 
+HEADERS = beacon.h 
+OBJS = beacon.o 
 
-DAQ_HEADERS = nuphasedaq.h nuphasehk.h bbb_gpio.h bbb_ain.h 
-DAQ_OBJS =  bbb_gpio.o bbb_ain.o nuphasehk.o nuphasedaq.o 
+DAQ_HEADERS = beacondaq.h beaconhk.h bbb_gpio.h bbb_ain.h 
+DAQ_OBJS =  bbb_gpio.o bbb_ain.o beaconhk.o beacondaq.o 
 
-all: libnuphase.so libnuphasedaq.so 
+all: libbeacon.so libbeacondaq.so 
 
-client: libnuphase.so 
+client: libbeacon.so 
 
-libnuphase.so: $(OBJS) $(HEADERS)
+libbeacon.so: $(OBJS) $(HEADERS)
 	$(CC) $(LDFLAGS)  -shared $(OBJS) -o $@
 
-libnuphasedaq.so: $(DAQ_OBJS) $(DAQ_HEADERS) libnuphase.so 
+libbeacondaq.so: $(DAQ_OBJS) $(DAQ_HEADERS) libbeacon.so 
 	$(CC) $(LDFLAGS) $(DAQ_LDFLAGS) -shared $(DAQ_OBJS) -o $@ 
 
 install-doc:
@@ -58,20 +58,20 @@ install-doc:
 install-client:  client 
 	install -d $(PREFIX)/$(LIBDIR)
 	install -d $(PREFIX)/$(INCLUDEDIR)
-	install libnuphase.so $(PREFIX)/$(LIBDIR)  
+	install libbeacon.so $(PREFIX)/$(LIBDIR)  
 	install $(HEADERS) $(PREFIX)/$(INCLUDEDIR)
-	-echo $(PREFIX)/$(LIBDIR) >> /etc/ld.so.conf.d/nuphase.conf
+	-echo $(PREFIX)/$(LIBDIR) >> /etc/ld.so.conf.d/beacon.conf
 	-ldconfig
 	
 install:  all install-client 
 	install $(DAQ_HEADERS) $(PREFIX)/$(INCLUDEDIR) 
-	install libnuphasedaq.so $(PREFIX)/$(LIBDIR)
+	install libbeacondaq.so $(PREFIX)/$(LIBDIR)
 
 
 doc: 
 	doxygen doc/Doxyfile 
 
-nuphase.pdf: doc 
+beacon.pdf: doc 
 	make -C doc/latex  && cp doc/latex/refman.pdf $@ 
 
 clean: 

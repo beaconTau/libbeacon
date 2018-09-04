@@ -1,9 +1,9 @@
-#ifndef _nuphasedaq_h
-#define _nuphasedaq_h
+#ifndef _beacondaq_h
+#define _beacondaq_h
 
-#include "nuphase.h" 
+#include "beacon.h" 
 
-/** \file nuphasedaq.h  
+/** \file beacondaq.h  
  *
  * Include file for talking to the hardware. 
  *
@@ -17,56 +17,56 @@
 
 
 /** Number of chunks in an address */ 
-#define NP_NUM_CHUNK 4 
+#define BN_NUM_CHUNK 4 
 
 /** Number of bytes in a word */
-#define NP_WORD_SIZE 4 
+#define BN_WORD_SIZE 4 
 
 
 
 /** opaque handle for device */ 
-struct nuphase_dev; 
+struct beacon_dev; 
 /** typedef for device */ 
-typedef struct nuphase_dev nuphase_dev_t; 
+typedef struct beacon_dev beacon_dev_t; 
 
-typedef uint8_t nuphase_buffer_mask_t; 
+typedef uint8_t beacon_buffer_mask_t; 
 
-typedef struct nuphase_trigger_enable
+typedef struct beacon_trigger_enable
 {
   uint8_t enable_beamforming : 1;
   uint8_t enable_beam8  : 1;
   uint8_t enable_beam4a  : 1;
   uint8_t enable_beam4b  : 1;
-} nuphase_trigger_enable_t; 
+} beacon_trigger_enable_t; 
 
 
-typedef struct nuphase_trigger_output_config
+typedef struct beacon_trigger_output_config
 {
   uint8_t enable : 1; 
   uint8_t polarity : 1; 
   uint8_t send_1Hz : 1; 
   uint8_t width; 
-} nuphase_trigger_output_config_t ; 
+} beacon_trigger_output_config_t ; 
 
 
-typedef struct nuphase_ext_input_config 
+typedef struct beacon_ext_input_config 
 {
   uint8_t use_as_trigger : 1; 
   uint8_t gate_enable : 1; 
   uint16_t gate_width; 
-} nuphase_ext_input_config_t; 
+} beacon_ext_input_config_t; 
 
-typedef enum nuphase_which_board
+typedef enum beacon_which_board
 {
   MASTER = 0, 
   SLAVE =1
-} nuphase_which_board_t; 
+} beacon_which_board_t; 
 
 
 
 
 /** Firmware info retrieved from board */ 
-typedef struct nuphase_fwinfo
+typedef struct beacon_fwinfo
 {
   struct 
   {
@@ -83,22 +83,22 @@ typedef struct nuphase_fwinfo
   } date;
 
   uint64_t dna;  //!< board dna 
-} nuphase_fwinfo_t; 
+} beacon_fwinfo_t; 
 
 
-typedef enum nuphase_reset_type 
+typedef enum beacon_reset_type 
 {
-  NP_RESET_COUNTERS, //!< resets event counter / trig number / trig time only 
-  NP_RESET_CALIBRATE,      //!< recalibrates ADC if necessary  
-  NP_RESET_ALMOST_GLOBAL, //!< everything but register settings 
-  NP_RESET_GLOBAL    //! everything 
-} nuphase_reset_t; 
+  BN_RESET_COUNTERS, //!< resets event counter / trig number / trig time only 
+  BN_RESET_CALIBRATE,      //!< recalibrates ADC if necessary  
+  BN_RESET_ALMOST_GLOBAL, //!< everything but register settings 
+  BN_RESET_GLOBAL    //! everything 
+} beacon_reset_t; 
 
 
 
-/** \brief Open a nuphase phased array board and initializes it. 
+/** \brief Open a beacon phased array board and initializes it. 
  *
- * This opens a nuphase phased array board and returns a pointer to the opaque
+ * This opens a beacon phased array board and returns a pointer to the opaque
  * device handle. 
  *
  *
@@ -111,7 +111,7 @@ typedef enum nuphase_reset_type
  * and the readout number offset. On initialization, the board id is set to the next
  * available id, buffer length is set to the default amount (624 samples) and
  * the readout number is set to unixtime << 32. They can be set to something
- * better using nuphase_set_board_id, nuphase_set_buffer_length and nuphase_set_readout_number_offset.
+ * better using beacon_set_board_id, beacon_set_buffer_length and beacon_set_readout_number_offset.
  *
  *
  * The access to the SPI file descriptor is locked when opening, so only one
@@ -127,20 +127,20 @@ typedef enum nuphase_reset_type
  *
  * @returns a pointer to the file descriptor, or 0 if something went wrong. 
  */
-nuphase_dev_t * nuphase_open(const char * spi_master_device_name, 
+beacon_dev_t * beacon_open(const char * spi_master_device_name, 
                              const char * spi_slave_device_name, 
                              int power_gpio_number, 
                              int thread_safe) ; 
 
 /** Deinitialize the phased array device and frees all memory. Do not attempt to use the device after closing. */ 
-int nuphase_close(nuphase_dev_t * d); 
+int beacon_close(beacon_dev_t * d); 
 
 /**Set the board id for the device. Note that slave will be number +1. */
-void nuphase_set_board_id(nuphase_dev_t * d, uint8_t number, nuphase_which_board_t which_board) ;
+void beacon_set_board_id(beacon_dev_t * d, uint8_t number, beacon_which_board_t which_board) ;
 
 
 /** Set the readout number offset. Currently DOES NOT reset the counter
- * on the board (only done on nuphase_open / nuphase_reset). 
+ * on the board (only done on beacon_open / beacon_reset). 
  *
  * This means you must run this either right after open or reset and before reading any buffers
  * for you to get something sensible.  
@@ -148,53 +148,53 @@ void nuphase_set_board_id(nuphase_dev_t * d, uint8_t number, nuphase_which_board
  * @param offset the offset to set
  *
  **/ 
-void nuphase_set_readout_number_offset(nuphase_dev_t * d, uint64_t offset); 
+void beacon_set_readout_number_offset(beacon_dev_t * d, uint64_t offset); 
 
 
 /** Sends a board reset. The reset type is specified by type. 
  *
  * @param d the board to reset
- * @param type The type of reset to do. See the documentation for nuphase_reset_t 
+ * @param type The type of reset to do. See the documentation for beacon_reset_t 
  * After reset, the phased trigger will be disabled and will need to be enabled if desired. 
  * @returns 0 on success
  */
-int nuphase_reset(nuphase_dev_t *d, nuphase_reset_t type); 
+int beacon_reset(beacon_dev_t *d, beacon_reset_t type); 
 
 /**Retrieve the board id for the current event. */
-uint8_t nuphase_get_board_id(const nuphase_dev_t * d, nuphase_which_board_t which_board) ; 
+uint8_t beacon_get_board_id(const beacon_dev_t * d, beacon_which_board_t which_board) ; 
 
 
 /** Set the length of the readout buffer. Can be anything between 0 and 2048. (default is 624). */ 
-void nuphase_set_buffer_length(nuphase_dev_t *d, uint16_t buffer); 
+void beacon_set_buffer_length(beacon_dev_t *d, uint16_t buffer); 
 
 /** Retrieves the current buffer length */ 
-uint16_t nuphase_get_buffer_length(const nuphase_dev_t *d); 
+uint16_t beacon_get_buffer_length(const beacon_dev_t *d); 
 
 
 /** Send a software trigger to the device
  * @param d the device to send a trigger to. 
  *
  **/ 
-int nuphase_sw_trigger(nuphase_dev_t * d); 
+int beacon_sw_trigger(beacon_dev_t * d); 
 
 /** Change the state of the calpulser */ 
-int nuphase_calpulse(nuphase_dev_t * d, unsigned state) ; 
+int beacon_calpulse(beacon_dev_t * d, unsigned state) ; 
 
-/** Waits for data to be available, or time out, or nuphase_cancel_wait. 
+/** Waits for data to be available, or time out, or beacon_cancel_wait. 
  * 
- * Will busy poll nuphase_check_buffers (which) 
+ * Will busy poll beacon_check_buffers (which) 
  *
  * If ready is passed, it will be filled after done waiting. Normally it should
  * be non-zero unless interrupted or the timeout is reached. 
  *
  * A timeout may be passed in seconds if you don't want to wait forever (and who wouldn't?) 
  *
- * The "correct way" to interrupt this by using nuphase_cancel_wait (either
+ * The "correct way" to interrupt this by using beacon_cancel_wait (either
  * from a signal handler or another thread). 
  *
- * If interrupted, (normally by nuphase_cancel_wait,), will return EINTR and ready (if passed) will be set to 0. 
+ * If interrupted, (normally by beacon_cancel_wait,), will return EINTR and ready (if passed) will be set to 0. 
  *
- * We also immediately return EAGAIN if there is a previous call to nuphase_cancel_wait that didn't actually cancel anything (like
+ * We also immediately return EAGAIN if there is a previous call to beacon_cancel_wait that didn't actually cancel anything (like
  * if it was called when nothing was waiting). 
  *
  * Right now only one thread is allowed to wait at a time. If you try waiting from another
@@ -203,21 +203,21 @@ int nuphase_calpulse(nuphase_dev_t * d, unsigned state) ;
  * Returns 0 on success,  
  * 
  **/
-int nuphase_wait(nuphase_dev_t *d, nuphase_buffer_mask_t * ready, float timeout_seconds, nuphase_which_board_t which); 
+int beacon_wait(beacon_dev_t *d, beacon_buffer_mask_t * ready, float timeout_seconds, beacon_which_board_t which); 
 
 /** Checks to see which buffers are ready to be read
  * If next_buffer is non-zero, will fill it with what the board things the next buffer to read is. 
  * */ 
-nuphase_buffer_mask_t nuphase_check_buffers(nuphase_dev_t *d, uint8_t*  next_buffer, nuphase_which_board_t which);
+beacon_buffer_mask_t beacon_check_buffers(beacon_dev_t *d, uint8_t*  next_buffer, beacon_which_board_t which);
 
 /** Retrieve the firmware info */
-int nuphase_fwinfo(nuphase_dev_t *d, nuphase_fwinfo_t* fwinfo, nuphase_which_board_t which); 
+int beacon_fwinfo(beacon_dev_t *d, beacon_fwinfo_t* fwinfo, beacon_which_board_t which); 
 
 
 
 /** Fills in the status struct. 
  **/ 
-int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * stat, nuphase_which_board_t which); 
+int beacon_read_status(beacon_dev_t *d, beacon_status_t * stat, beacon_which_board_t which); 
 
 /**
  * Highest level read function. This will wait for data, read it into the 
@@ -227,8 +227,8 @@ int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * stat, nuphase_which
  
   \verbatim
   int nread; 
-  nuphase_header_t headers[NP_NUM_BUFFER]; 
-  nuphase_event_t events[NP_NUM_BUFFER]; 
+  beacon_header_t headers[BN_NUM_BUFFER]; 
+  beacon_event_t events[BN_NUM_BUFFER]; 
   nread = wait_for_and_read_multiple_events(device, &headers, &events); 
   \endverbatim
  
@@ -236,8 +236,8 @@ int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * stat, nuphase_which
  
   \verbatim
   int nread; 
-  nuphase_header_t (*headers)[NP_NUM_BUFFER] = malloc(sizeof(*headers)); 
-  nuphase_header_t (*events)[NP_NUM_BUFFER] = malloc(sizeof(*headers)); 
+  beacon_header_t (*headers)[BN_NUM_BUFFER] = malloc(sizeof(*headers)); 
+  beacon_header_t (*events)[BN_NUM_BUFFER] = malloc(sizeof(*headers)); 
   nread = wait_for_and_read_multiple_events(device, &headers, &events); 
  
   \endverbatim
@@ -246,9 +246,9 @@ int nuphase_read_status(nuphase_dev_t *d, nuphase_status_t * stat, nuphase_which
  * Returns the number of events read. 
  *
  **/ 
-int nuphase_wait_for_and_read_multiple_events(nuphase_dev_t * d, 
-                                              nuphase_header_t (*headers_master)[NP_NUM_BUFFER], 
-                                              nuphase_event_t  (*events_master)[NP_NUM_BUFFER]
+int beacon_wait_for_and_read_multiple_events(beacon_dev_t * d, 
+                                              beacon_header_t (*headers_master)[BN_NUM_BUFFER], 
+                                              beacon_event_t  (*events_master)[BN_NUM_BUFFER]
                                               
                                               ) ; 
 
@@ -261,8 +261,8 @@ int nuphase_wait_for_and_read_multiple_events(nuphase_dev_t * d,
  * @param event event to write to 
  * Returns 0 on success.
  * */ 
-int nuphase_read_single(nuphase_dev_t *d, uint8_t buffer, 
-                        nuphase_header_t * header, nuphase_event_t * event
+int beacon_read_single(beacon_dev_t *d, uint8_t buffer, 
+                        beacon_header_t * header, beacon_event_t * event
                         );
 
 
@@ -271,8 +271,8 @@ int nuphase_read_single(nuphase_dev_t *d, uint8_t buffer,
  * appropriately).  Returns 0 on success. 
  *
  **/
-int nuphase_read_multiple_array(nuphase_dev_t *d, nuphase_buffer_mask_t mask, 
-                                nuphase_header_t *header_arr,  nuphase_event_t * event_arr
+int beacon_read_multiple_array(beacon_dev_t *d, beacon_buffer_mask_t mask, 
+                                beacon_header_t *header_arr,  beacon_event_t * event_arr
                                 ); 
  
 /** Reads buffers specified by mask. An pointer to event and header  must exist for each
@@ -280,8 +280,8 @@ int nuphase_read_multiple_array(nuphase_dev_t *d, nuphase_buffer_mask_t mask,
  * buffer after reading and increments event numbers appropriately).  Returns 0
  * on success. 
  **/
-int nuphase_read_multiple_ptr(nuphase_dev_t *d, nuphase_buffer_mask_t mask, 
-                              nuphase_header_t **header_ptr_arr,  nuphase_event_t ** event_ptr_arr
+int beacon_read_multiple_ptr(beacon_dev_t *d, beacon_buffer_mask_t mask, 
+                              beacon_header_t **header_ptr_arr,  beacon_event_t ** event_ptr_arr
                               ); 
 
 
@@ -291,23 +291,23 @@ int nuphase_read_multiple_ptr(nuphase_dev_t *d, nuphase_buffer_mask_t mask,
  * Does not clear the buffer or increment event number. 
  *
  **/ 
-int nuphase_read_raw(nuphase_dev_t *d, uint8_t buffer, uint8_t channel, uint8_t start_ram, uint8_t end_ram, uint8_t * data, nuphase_which_board_t which); 
+int beacon_read_raw(beacon_dev_t *d, uint8_t buffer, uint8_t channel, uint8_t start_ram, uint8_t end_ram, uint8_t * data, beacon_which_board_t which); 
 
 
 /** Lowest-level write command. Writes 4 bytes from buffer to device (if master/slave, to both) */ 
-int nuphase_write(nuphase_dev_t *d, const uint8_t* buffer); 
+int beacon_write(beacon_dev_t *d, const uint8_t* buffer); 
 
 /** Lowest-level read command. Reads 4 bytes into buffer */ 
-int nuphase_read(nuphase_dev_t *d, uint8_t* buffer, nuphase_which_board_t which); 
+int beacon_read(beacon_dev_t *d, uint8_t* buffer, beacon_which_board_t which); 
 
 /** Clear the specified buffers. Returns 0 on success. */ 
-int nuphase_clear_buffer(nuphase_dev_t *d, nuphase_buffer_mask_t mask); 
+int beacon_clear_buffer(beacon_dev_t *d, beacon_buffer_mask_t mask); 
 
-/** This cancels the current nuphase_wait. If there
- * is no nuphase_wait, it will prevent the first  future one from running
+/** This cancels the current beacon_wait. If there
+ * is no beacon_wait, it will prevent the first  future one from running
  * Should be safe to call this from a signal handler (hopefully :). 
  */
-void nuphase_cancel_wait(nuphase_dev_t *d) ; 
+void beacon_cancel_wait(beacon_dev_t *d) ; 
 
 /** 
  * low level register read 
@@ -319,128 +319,128 @@ void nuphase_cancel_wait(nuphase_dev_t *d) ;
  * @return 0 on success
  * 
  **/ 
-int nuphase_read_register(nuphase_dev_t * d, uint8_t address, uint8_t * result, nuphase_which_board_t which); 
+int beacon_read_register(beacon_dev_t * d, uint8_t address, uint8_t * result, beacon_which_board_t which); 
 
 /** Set the spi clock rate in MHz (default 10MHz)*/ 
-int nuphase_set_spi_clock(nuphase_dev_t *d, unsigned clock); 
+int beacon_set_spi_clock(beacon_dev_t *d, unsigned clock); 
 
 /** toggle chipselect between each transfer (Default yes) */ 
-int nuphase_set_toggle_chipselect(nuphase_dev_t *d, int cs_toggle); 
+int beacon_set_toggle_chipselect(beacon_dev_t *d, int cs_toggle); 
 
 /** toggle additional delay between transfers (Default 0) */ 
-int nuphase_set_transaction_delay(nuphase_dev_t *d, unsigned delay_usecs); 
+int beacon_set_transaction_delay(beacon_dev_t *d, unsigned delay_usecs); 
 
 
 
 /** Set all the thresholds 
- * @param trigger_thresholds array of thresholds, should have NP_NUM_BEAMS members
+ * @param trigger_thresholds array of thresholds, should have BN_NUM_BEAMS members
  * @param dont_set_mask mask of beams not to set (pass 0 to set all). 
  */
-int nuphase_set_thresholds(nuphase_dev_t* d, const uint32_t *trigger_thresholds, uint32_t dont_set_mask); 
+int beacon_set_thresholds(beacon_dev_t* d, const uint32_t *trigger_thresholds, uint32_t dont_set_mask); 
 
 /** Get all the thresholds
- * @param trigger_thresholds array of thresholds to be filled. Should have NP_NUM_BEAMS members.
+ * @param trigger_thresholds array of thresholds to be filled. Should have BN_NUM_BEAMS members.
  */
-int nuphase_get_thresholds(nuphase_dev_t* d, uint32_t *trigger_thresolds); 
+int beacon_get_thresholds(beacon_dev_t* d, uint32_t *trigger_thresolds); 
 
 /** Set the trigger mask. 1 to use all beams */ 
-int nuphase_set_trigger_mask(nuphase_dev_t* d, uint32_t mask); 
+int beacon_set_trigger_mask(beacon_dev_t* d, uint32_t mask); 
 
 /* Get the trigger mask. */ 
-uint32_t nuphase_get_trigger_mask(nuphase_dev_t* d); 
+uint32_t beacon_get_trigger_mask(beacon_dev_t* d); 
 
 
 /** Set the attenuation for each channel .
- *  Should have NP_NUM_CHAN members for both master and slave. If 0, not applied for that board. 
+ *  Should have BN_NUM_CHAN members for both master and slave. If 0, not applied for that board. 
  */ 
-int nuphase_set_attenuation(nuphase_dev_t * d, const uint8_t * attenuation_master, const uint8_t * attenuation_slave); 
+int beacon_set_attenuation(beacon_dev_t * d, const uint8_t * attenuation_master, const uint8_t * attenuation_slave); 
 
 /** Get the attenuation for each channel .
- *  Should have NP_NUM_CHAN members. If 0, not read. 
+ *  Should have BN_NUM_CHAN members. If 0, not read. 
  */ 
-int nuphase_get_attenuation(nuphase_dev_t * d, uint8_t * attenuation_master, uint8_t  *attenuation_slave); 
+int beacon_get_attenuation(beacon_dev_t * d, uint8_t * attenuation_master, uint8_t  *attenuation_slave); 
 
 
 /** Sets the channels used to form the trigger.
  * */ 
-int nuphase_set_channel_mask(nuphase_dev_t * d, uint8_t channel_mask); 
+int beacon_set_channel_mask(beacon_dev_t * d, uint8_t channel_mask); 
 
 /** Gets the channels used to form the trigger.
  * 8 LSB's for master, then for slave .
  * */ 
-uint16_t nuphase_get_channel_mask(nuphase_dev_t *d); 
+uint16_t beacon_get_channel_mask(beacon_dev_t *d); 
 
 /** Set the trigger enables */ 
-int nuphase_set_trigger_enables(nuphase_dev_t *d, nuphase_trigger_enable_t enable, nuphase_which_board_t which); 
+int beacon_set_trigger_enables(beacon_dev_t *d, beacon_trigger_enable_t enable, beacon_which_board_t which); 
 
 /** Get the trigger enables */ 
-nuphase_trigger_enable_t nuphase_get_trigger_enables(nuphase_dev_t *d, nuphase_which_board_t which); 
+beacon_trigger_enable_t beacon_get_trigger_enables(beacon_dev_t *d, beacon_which_board_t which); 
 
 /** Enable or disable phased array readout. */ 
-int nuphase_phased_trigger_readout(nuphase_dev_t *d, int enable);
+int beacon_phased_trigger_readout(beacon_dev_t *d, int enable);
 
 /** Set the trigger holdoff (in the appropriate units) */ 
-int nuphase_set_trigger_holdoff(nuphase_dev_t *d, uint16_t holdoff); 
+int beacon_set_trigger_holdoff(beacon_dev_t *d, uint16_t holdoff); 
 
 /** Get the trigger holdoff */ 
-uint16_t nuphase_get_trigger_holdoff(nuphase_dev_t *d); 
+uint16_t beacon_get_trigger_holdoff(beacon_dev_t *d); 
 
 /** Set the pretrigger (0-7). Does it for both boards*/ 
-int nuphase_set_pretrigger(nuphase_dev_t *d, uint8_t pretrigger); 
+int beacon_set_pretrigger(beacon_dev_t *d, uint8_t pretrigger); 
 
 /** Get the pretrigger (0-7) (should be the same for both boards).
  *
  * This just returns the cached value, so it's possible that it was changed from underneath us. 
  * */ 
-uint8_t nuphase_get_pretrigger(const nuphase_dev_t *d); 
+uint8_t beacon_get_pretrigger(const beacon_dev_t *d); 
 
 /** Set the external output config */ 
-int nuphase_configure_trigger_output(nuphase_dev_t * d, nuphase_trigger_output_config_t config); 
+int beacon_configure_trigger_output(beacon_dev_t * d, beacon_trigger_output_config_t config); 
 
 /** get the external output config */ 
-int nuphase_get_trigger_output(nuphase_dev_t * d, nuphase_trigger_output_config_t * config); 
+int beacon_get_trigger_output(beacon_dev_t * d, beacon_trigger_output_config_t * config); 
 
 /** Set the external triger config */ 
-int nuphase_configure_ext_trigger_in(nuphase_dev_t * d, nuphase_ext_input_config_t config); 
+int beacon_configure_ext_trigger_in(beacon_dev_t * d, beacon_ext_input_config_t config); 
 
 /** get the external trigger config */ 
-int nuphase_get_ext_trigger_in(nuphase_dev_t * d, nuphase_ext_input_config_t * config); 
+int beacon_get_ext_trigger_in(beacon_dev_t * d, beacon_ext_input_config_t * config); 
 
-int nuphase_enable_verification_mode(nuphase_dev_t * d, int mode); 
+int beacon_enable_verification_mode(beacon_dev_t * d, int mode); 
 
 /* 0 if not on, 1 if on, -1 if error */ 
-int nuphase_query_verification_mode(nuphase_dev_t * d); 
+int beacon_query_verification_mode(beacon_dev_t * d); 
 
 /** The poll interval for waiting, in us. If 0, will just do a sched_yield */ 
-int nuphase_set_poll_interval(nuphase_dev_t *, unsigned short us); 
+int beacon_set_poll_interval(beacon_dev_t *, unsigned short us); 
 
-/** Sets the trigger delays. Should have NP_NUM_CHAN members */ 
-int nuphase_set_trigger_delays(nuphase_dev_t *d, const uint8_t * delays); 
+/** Sets the trigger delays. Should have BN_NUM_CHAN members */ 
+int beacon_set_trigger_delays(beacon_dev_t *d, const uint8_t * delays); 
 
-/** Gets the trigger delays. Should have NP_NUM_CHAN members */ 
-int nuphase_get_trigger_delays(nuphase_dev_t *d, uint8_t * delays); 
+/** Gets the trigger delays. Should have BN_NUM_CHAN members */ 
+int beacon_get_trigger_delays(beacon_dev_t *d, uint8_t * delays); 
 
 // /** Set the minimum threshold for any beam (default, 5000) */ 
-// int nuphase_set_min_threshold(nuphase_dev_t *d, uint32_t min_threshold); 
+// int beacon_set_min_threshold(beacon_dev_t *d, uint32_t min_threshold); 
 
 /* Set the trigger polarization */
-int nuphase_set_trigger_polarization(nuphase_dev_t* d, nuphase_trigger_polarization_t pol);
+int beacon_set_trigger_polarization(beacon_dev_t* d, beacon_trigger_polarization_t pol);
 
 /* Get the trigger polarization */
-nuphase_trigger_polarization_t nuphase_get_trigger_polarization(nuphase_dev_t* d);
+beacon_trigger_polarization_t beacon_get_trigger_polarization(beacon_dev_t* d);
 
 
 /** Set the trigger-path low pass filter */ 
-int nuphase_set_trigger_path_low_pass(nuphase_dev_t *d, int on); 
+int beacon_set_trigger_path_low_pass(beacon_dev_t *d, int on); 
 
 /** get the trigger_path low pass, 0 = off, 1 = on, otherwise some error */ 
-int nuphase_get_trigger_path_low_pass(nuphase_dev_t *d); 
+int beacon_get_trigger_path_low_pass(beacon_dev_t *d); 
 
 /** Set the dynamic masking options */ 
-int nuphase_set_dynamic_masking(nuphase_dev_t *d, int enable, uint8_t threshold, uint16_t holdoff); 
+int beacon_set_dynamic_masking(beacon_dev_t *d, int enable, uint8_t threshold, uint16_t holdoff); 
 
 /** retrieve the dynamic masking options */ 
-int nuphase_get_dynamic_masking(nuphase_dev_t *d, int * enable, uint8_t * threshold, uint16_t * holdoff); 
+int beacon_get_dynamic_masking(beacon_dev_t *d, int * enable, uint8_t * threshold, uint16_t * holdoff); 
 
 
 #endif

@@ -1,15 +1,13 @@
-#ifndef _nuphasehk_h 
-#define _nuphasehk_h 
+#ifndef _beaconhk_h 
+#define _beaconhk_h 
 
-#include "nuphase.h" 
+#include "beacon.h" 
 
-/** \file nuphasehk.h
+/** \file beaconhk.h
  * 
- *  NuPhase housekeeping functions. 
+ *  Beacon housekeeping functions. 
  *
- *   To get current housekeeping info, use the nuphase_hk method. 
- *
- *   To set the ASPS power state, use nuphase_set_asps_power_state
+ *   To get current housekeeping info, use the beacon_hk method. 
  *
  *   To set the GPIO power states  
  *
@@ -22,7 +20,7 @@
  */
 
 /** Fills in this hk struct, using the specified method to communicate with the ASPS-DAQ */ 
-int nuphase_hk(nuphase_hk_t * hk); 
+int beacon_hk(beacon_hk_t * hk); 
 
 
 /** Set the GPIO power state. For the FPGA's to be on, the relevant ASPS power state must also be enabled
@@ -31,10 +29,10 @@ int nuphase_hk(nuphase_hk_t * hk);
  *
  * The mask allows you to only set some of the pins (and leave the others unchanged) 
  **/ 
-int nuphase_set_gpio_power_state ( nuphase_gpio_power_state_t state, nuphase_gpio_power_state_t mask); 
+int beacon_set_gpio_power_state ( beacon_gpio_power_state_t state, beacon_gpio_power_state_t mask); 
 
 /** Reboots the FPGA's via the gpio's */
-int nuphase_reboot_fpga_power(int sleep_after_off, int sleep_after_master_on); 
+int beacon_reboot_fpga_power(int sleep_after_off, int sleep_after_master_on); 
 
 
 #endif

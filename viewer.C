@@ -1,6 +1,6 @@
-#include "nuphase.h" 
+#include "beacon.h" 
 
-TGraph * makeGraph(const nuphase_event_t * ev, int ibd = 0, int ch = 0) 
+TGraph * makeGraph(const beacon_event_t * ev, int ibd = 0, int ch = 0) 
 {
   TGraph * g = new TGraph(ev->buffer_length); 
 
@@ -25,16 +25,16 @@ void viewer(const char * hdfile, const char * evfile, int i = 0)
   gzFile  hdf = gzopen(hdfile,"r"); 
   gzFile  evf = gzopen(evfile,"r"); 
 
-  nuphase_event_t ev; 
-  nuphase_header_t hd; 
+  beacon_event_t ev; 
+  beacon_header_t hd; 
 
   for (int c = 0; c <= i; c++)
   {
-    nuphase_event_gzread(evf, &ev); 
-    nuphase_header_gzread(hdf, &hd); 
+    beacon_event_gzread(evf, &ev); 
+    beacon_header_gzread(hdf, &hd); 
   }
 
-  nuphase_header_print(stdout, &hd); 
+  beacon_header_print(stdout, &hd); 
   
   for (int ibd = 0; ibd < 1; ibd++)
   {

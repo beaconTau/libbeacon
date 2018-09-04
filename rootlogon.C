@@ -1,5 +1,5 @@
 { 
 
-  gSystem->Load("libnuphase.so"); 
+  gSystem->Load("libbeacon.so"); 
 
 }
