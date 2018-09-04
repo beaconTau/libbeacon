@@ -6,12 +6,13 @@
  *
  */
 #ifndef PYBIND11_NAMESPACE
-#define ARRAY(type, name, nX) type name[nX]
+#define ARRAY1D(type, name, nX) type name[nX]
+#define ARRAY2D(type, name, nX, nY) type name[nX][nY]
 #define ARRAY3D(type, name, nX, nY, nZ) type name[nX][nY][nZ]
 #else
 #include <array>
-#define ARRAY(type, name, nX) std::array<type, nX> name
-//#define ARRAY3D(type, name, nX, nY, nZ) type name[nX][nY][nZ]
+#define ARRAY1D(type, name, nX)                               std::array<type, nX> name
+#define ARRAY2D(type, name, nX, nY)                std::array<std::array<type, nY>, nX> name
 #define ARRAY3D(type, name, nX, nY, nZ) std::array<std::array<std::array<type, nZ>, nY>, nX> name
 #endif
 
@@ -108,33 +109,33 @@ const char* nuphase_trigger_polarization_name(nuphase_trigger_polarization_t pol
  */
 typedef struct nuphase_header 
 {
-  uint64_t event_number;                         //!< A unique identifier for this event. If only one board, will match readout number. Otherwise, might skip if the boards are out of sync. 
-  uint64_t trig_number;                          //!< the sequential (since reset) trigger number assigned to this event. 
-  uint16_t buffer_length;                        //!< the buffer length. Stored both here and in the event. 
-  uint16_t pretrigger_samples;                   //!< Number of samples that are pretrigger
-  ARRAY(uint32_t, readout_time, NP_MAX_BOARDS);  //!< CPU time of readout, seconds  
-  ARRAY(uint32_t, readout_time_ns, NP_MAX_BOARDS);       //!< CPU time of readout, nanoseconds 
-  ARRAY(uint64_t, trig_time, NP_MAX_BOARDS);             //!< Board trigger time (raw units) 
-  uint32_t approx_trigger_time;                  //!< Board trigger time converted to real units (approx secs), master only
-  uint32_t approx_trigger_time_nsecs;            //!< Board trigger time converted to real units (approx nnsecs), master only
-  uint32_t triggered_beams;                      //!< The beams that triggered 
-  uint32_t beam_mask;                            //!< The enabled beams
-  uint32_t beam_power;                           //!< The power in the triggered beam
-  ARRAY(uint32_t, deadtime, NP_MAX_BOARDS);              //!< ??? Will we have this available? If so, this will be a fraction. (store for slave board as well) 
-  uint8_t buffer_number;                         //!< the buffer number (do we need this?) 
-  uint8_t channel_mask;                          //!< The channels allowed to participate in the trigger
-  ARRAY(uint8_t, channel_read_mask, NP_MAX_BOARDS);      //!< The channels actually read
-  uint8_t gate_flag;                             //!< gate flag  (used to be channel_overflow but that was never used) 
-  uint8_t buffer_mask;                           //!< The buffer mask at time of read out (do we want this?)   
-  ARRAY(uint8_t, board_id, NP_MAX_BOARDS);               //!< The board number assigned at startup. If board_id[1] == 0, no slave. 
-  nuphase_trig_type_t trig_type;                 //!< The trigger type?
-  nuphase_trigger_polarization_t trig_pol;       //!< The trigger polarization
-  uint8_t calpulser;                             //!< Was the calpulser on? 
-  uint8_t sync_problem;                          //!< Various sync problems. TODO convert to enum 
-  uint32_t pps_counter;                          //!< value of the pps timer at the time of the event
-  uint32_t dynamic_beam_mask;                    //!< the automatic beam masker 
+  uint64_t event_number;                              //!< A unique identifier for this event. If only one board, will match readout number. Otherwise, might skip if the boards are out of sync. 
+  uint64_t trig_number;                               //!< the sequential (since reset) trigger number assigned to this event. 
+  uint16_t buffer_length;                             //!< the buffer length. Stored both here and in the event. 
+  uint16_t pretrigger_samples;                        //!< Number of samples that are pretrigger
+  ARRAY1D(uint32_t, readout_time, NP_MAX_BOARDS);     //!< CPU time of readout, seconds
+  ARRAY1D(uint32_t, readout_time_ns, NP_MAX_BOARDS);  //!< CPU time of readout, nanoseconds 
+  ARRAY1D(uint64_t, trig_time, NP_MAX_BOARDS);        //!< Board trigger time (raw units) 
+  uint32_t approx_trigger_time;                       //!< Board trigger time converted to real units (approx secs), master only
+  uint32_t approx_trigger_time_nsecs;                 //!< Board trigger time converted to real units (approx nnsecs), master only
+  uint32_t triggered_beams;                           //!< The beams that triggered 
+  uint32_t beam_mask;                                 //!< The enabled beams
+  uint32_t beam_power;                                //!< The power in the triggered beam
+  ARRAY1D(uint32_t, deadtime, NP_MAX_BOARDS);         //!< ??? Will we have this available? If so, this will be a fraction. (store for slave board as well) 
+  uint8_t buffer_number;                              //!< the buffer number (do we need this?) 
+  uint8_t channel_mask;                               //!< The channels allowed to participate in the trigger
+  ARRAY1D(uint8_t, channel_read_mask, NP_MAX_BOARDS); //!< The channels actually read
+  uint8_t gate_flag;                                  //!< gate flag  (used to be channel_overflow but that was never used) 
+  uint8_t buffer_mask;                                //!< The buffer mask at time of read out (do we want this?)   
+  ARRAY1D(uint8_t, board_id, NP_MAX_BOARDS);          //!< The board number assigned at startup. If board_id[1] == 0, no slave. 
+  nuphase_trig_type_t trig_type;                      //!< The trigger type?
+  nuphase_trigger_polarization_t trig_pol;            //!< The trigger polarization
+  uint8_t calpulser;                                  //!< Was the calpulser on? 
+  uint8_t sync_problem;                               //!< Various sync problems. TODO convert to enum 
+  uint32_t pps_counter;                               //!< value of the pps timer at the time of the event
+  uint32_t dynamic_beam_mask;                         //!< the automatic beam masker 
 } nuphase_header_t; 
-xg
+
 /**nuphase event body.
  * Holds waveforms. Note that although the buffer length may vary, in memory
  * we always hold max_buffer_size (2048) . Memory is cheap right. Even on the beaglebone, 16KB is no big deal?  (at least, cheaper than dynamic allocation, maybe?) 
@@ -144,9 +145,9 @@ typedef struct nuphase_event
 {
   uint64_t event_number;  //!< The event number. Should match event header.  
   uint16_t buffer_length; //!< The buffer length that is actually filled. Also available in event header. 
-  ARRAY(uint8_t, board_id, NP_MAX_BOARDS);     //!< The board number assigned at startup. If the second board_id is zero, that indicates there is no slave device. 
+  ARRAY1D(uint8_t, board_id, NP_MAX_BOARDS);     //!< The board number assigned at startup. If the second board_id is zero, that indicates there is no slave device. 
   // uint8_t data[NP_MAX_BOARDS][NP_NUM_CHAN][NP_MAX_WAVEFORM_LENGTH]; //!< The waveform data. Only the first buffer_length bytes of each are important. The second array is only filled if there is a slave-device.
-  ARRAY3D(uint8_t, data,NP_MAX_BOARDS,NP_NUM_CHAN,NP_MAX_WAVEFORM_LENGTH); //!< The waveform data. Only the first buffer_length bytes of each are important. The second array is only filled if there is a slave-device.   
+  ARRAY3D(uint8_t, data,NP_MAX_BOARDS,NP_NUM_CHAN,NP_MAX_WAVEFORM_LENGTH); //!< The waveform data. Only the first buffer_length bytes of each are important. The second array is only filled if there is a slave-device.
 } nuphase_event_t; 
 
 
@@ -165,15 +166,15 @@ typedef enum nuphase_scaler_type
  **/
 typedef struct nuphase_status
 {
-  uint16_t global_scalers[NP_NUM_SCALERS];
-  uint16_t beam_scalers[NP_NUM_SCALERS][NP_NUM_BEAMS];  //!< The scaler for each beam (12 bits) 
-  uint32_t deadtime;               //!< The deadtime fraction (units tbd) 
-  uint32_t readout_time;           //!< CPU time of readout, seconds
-  uint32_t readout_time_ns;        //!< CPU time of readout, nanoseconds 
-  uint32_t trigger_thresholds[NP_NUM_BEAMS]; //!< The trigger thresholds  
-  uint64_t latched_pps_time;      //!< A timestamp corresponding to a pps time 
-  uint8_t board_id;               //!< The board number assigned at startup. 
-  uint32_t dynamic_beam_mask;     //!<  the dynamic beam mask 
+  ARRAY1D(uint16_t, global_scalers, NP_NUM_SCALERS);
+  ARRAY2D(uint16_t, beam_scalers, NP_NUM_SCALERS, NP_NUM_BEAMS); //!< The scaler for each beam (12 bits) 
+  uint32_t deadtime;                                             //!< The deadtime fraction (units tbd) 
+  uint32_t readout_time;                                         //!< CPU time of readout, seconds
+  uint32_t readout_time_ns;                                      //!< CPU time of readout, nanoseconds 
+  ARRAY1D(uint32_t, trigger_thresholds, NP_NUM_BEAMS);           //!< The trigger thresholds    
+  uint64_t latched_pps_time;                                     //!< A timestamp corresponding to a pps time 
+  uint8_t board_id;                                              //!< The board number assigned at startup. 
+  uint32_t dynamic_beam_mask;                                    //!<  the dynamic beam mask 
 
 } nuphase_status_t; 
 
@@ -276,7 +277,9 @@ int nuphase_hk_read(FILE * f, nuphase_hk_t * h);
 /** read this hk from compressed file. The size will be different than sizeof(nuphase_hk_t). Returns 0 on success. */ 
 int nuphase_hk_gzread(gzFile  f, nuphase_hk_t * h); 
 
-#undef ARRAY
+#undef ARRAY1D
+#undef ARRAY2D
+#undef ARRAY3D
 
 #ifdef __cplusplus
 }
