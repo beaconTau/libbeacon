@@ -666,11 +666,12 @@ int beacon_status_print(FILE *f, const beacon_status_t *st)
 }
 
 
-#define NUM_TRIG_POL 2
-static const char* beacon_trigger_polarization_names[NUM_TRIG_POL] = {"H", "V"};
-
 const char* beacon_trigger_polarization_name(beacon_trigger_polarization_t pol){
-  return pol >= 0 && pol < NUM_TRIG_POL ? beacon_trigger_polarization_names[pol] : NULL;
+  switch(pol){
+  case H:  return "H";
+  case V:  return "V";
+  default: return "Unknown";
+  }
 }
 
 static const char * trig_type_names[4]  = { "NONE", "SW", "RF" ,"EXT" } ; 

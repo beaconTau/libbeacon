@@ -6,13 +6,13 @@
  *
  */
 #ifndef PYBIND11_NAMESPACE
-#define ARRAY1D(type, name, nX) type name[nX]
-#define ARRAY2D(type, name, nX, nY) type name[nX][nY]
+#define ARRAY1D(type, name, nX)         type name[nX]
+#define ARRAY2D(type, name, nX, nY)     type name[nX][nY]
 #define ARRAY3D(type, name, nX, nY, nZ) type name[nX][nY][nZ]
 #else
 #include <array>
-#define ARRAY1D(type, name, nX)                               std::array<type, nX> name
-#define ARRAY2D(type, name, nX, nY)                std::array<std::array<type, nY>, nX> name
+#define ARRAY1D(type, name, nX)                                         std::array<type, nX> name
+#define ARRAY2D(type, name, nX, nY)                     std::array<std::array<type, nY>, nX> name
 #define ARRAY3D(type, name, nX, nY, nZ) std::array<std::array<std::array<type, nZ>, nY>, nX> name
 #endif
 
