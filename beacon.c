@@ -9,7 +9,7 @@
 #define BEACON_HEADER_VERSION 1
 #define BEACON_EVENT_VERSION 0 
 #define BEACON_STATUS_VERSION 1 
-#define BEACON_HK_VERSION 0 
+#define BEACON_HK_VERSION 1 
 
 
 #define BEACON_HEADER_MAGIC 0xbe  
@@ -479,6 +479,25 @@ static int beacon_status_generic_read(struct generic_file gf, beacon_status_t *s
   return 0; 
 }
 
+typedef struct beacon_hk_v0
+{
+  uint32_t unixTime; 
+  uint16_t unixTimeMillisecs; 
+  int8_t temp_board;  //C, or -128 if off
+  int8_t temp_adc;
+  uint16_t frontend_current; 
+  uint16_t adc_current; 
+  uint16_t aux_current; 
+  uint16_t ant_current; 
+
+  beacon_gpio_power_state_t gpio_state; 
+  uint32_t disk_space_kB; 
+  uint32_t free_mem_kB;  
+} beacon_hk_v0_t; 
+
+
+
+
 static int beacon_hk_generic_write(struct generic_file gf, const beacon_hk_t *hk)
 {
   struct packet_start start; 
@@ -516,6 +535,14 @@ static int beacon_hk_generic_read(struct generic_file gf, beacon_hk_t *hk)
   switch(start.ver) 
   {
     //add cases here if necessary 
+    case 0: 
+      wanted = sizeof(beacon_hk_v0_t); 
+      got = generic_read(gf,wanted,hk); 
+      cksum = stupid_fletcher16(wanted,hk); 
+      //set the rest to zero 
+      memset(hk + sizeof(beacon_hk_v0_t), 0, sizeof(beacon_hk_t)-sizeof(beacon_hk_v0_t));  
+      break; 
+    
     case BEACON_HK_VERSION: //this is the most recent hk!
       wanted = sizeof(beacon_hk_t); 
       got = generic_read(gf, wanted, hk); 
@@ -811,6 +838,12 @@ int beacon_hk_print(FILE * f, const beacon_hk_t *hk)
   fprintf(f,"     DISK SPACE: %0.3g MB \n", hk->disk_space_kB /1024.);  
   fprintf(f,"     FREE MEM  : %0.3g MB \n", hk->free_mem_kB   /1024.);  
 
+  fprintf(f,"  POWER SYSTEM: \n"); 
+  fprintf(f,"     INVERTER BATTERY VOLTAGE: %g V\n", hk->inv_batt_dV / 10.);  
+  fprintf(f,"     CC BATTERY VOLTAGE: %g V\n", hk->cc_batt_dV / 10.);  
+  fprintf(f,"     PV VOLTAGE: %g V\n", hk->pv_dV / 10.);  
+  fprintf(f,"     CC DAILY CHARGE: %g Ah\n", hk->cc_daily_Ah / 10.);  
+  fprintf(f,"     CC DAILY POWER: %g kwH\n", hk->cc_daily_hWh / 10.);  
   return 0; 
 }
 

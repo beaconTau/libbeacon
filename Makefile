@@ -8,6 +8,9 @@ SPI_DEBUG=0
 #    you read before setting. Or if the thresholds get set in a different way... 
 CHEAT_READ_THRESHOLDS=0
 
+
+
+
 CC=gcc
 LD=gcc
 
@@ -15,11 +18,11 @@ LD=gcc
 CFLAGS+=-fPIC -g -Wall -Wextra  -D_GNU_SOURCE -O2 -Werror
 LDFLAGS+= -lz -g
 
-DAQ_LDFLAGS+= -lpthread -L./ -lbeacon -g 
+DAQ_LDFLAGS+= -lpthread -lcurl -L./ -lbeacon -g 
 
 
 ifeq ($(SPI_DEBUG),1)
-	CFLAGS+=-DDEBUG_PRINTOUTS
+CFLAGS+=-DDEBUG_PRINTOUTS
 endif
 
 ifeq ($(CHEAT_READ_THRESHOLDS),1)

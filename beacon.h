@@ -200,8 +200,6 @@ typedef struct beacon_hk
   uint16_t unixTimeMillisecs; 
   int8_t temp_board;  //C, or -128 if off
   int8_t temp_adc;
-  // int8_t temp_adc_0; // rename to temp_adc
-  // int8_t temp_adc_1; // no longer here
 
   //TODO: these are in mA... make sure that it's actually enough bits! Or change units if necessary. 
   uint16_t frontend_current; 
@@ -212,6 +210,19 @@ typedef struct beacon_hk
   beacon_gpio_power_state_t gpio_state; 
   uint32_t disk_space_kB; 
   uint32_t free_mem_kB;  
+
+  /* This is in decivolts */ 
+  uint16_t inv_batt_dV; 
+  uint16_t cc_batt_dV; ; 
+  uint16_t pv_dV; ; 
+
+  /** This is in Ah */
+  uint8_t cc_daily_Ah; ; 
+
+  /** This is in hWh */
+  uint8_t cc_daily_hWh; ; 
+
+
 } beacon_hk_t; 
 
 

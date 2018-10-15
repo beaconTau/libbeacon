@@ -11,6 +11,7 @@
 #include <string.h> 
 #include <fcntl.h> 
 #include <sys/ioctl.h> 
+#include <curl/curl.h> 
 
 
 
@@ -130,6 +131,155 @@ static uint32_t get_free_kB()
 }
 
 
+
+//---------------------------------------------------
+// MATE3 parsing stuff, this is very naive. A better
+// method might use a json parser or something like
+// that 
+//---------------------------------------------------
+
+static int mate3_port = 8080; 
+static char * mate3_addr = 0;
+static CURL * curl = 0; 
+typedef struct http_buf
+{
+  char * buf; 
+  size_t pos; 
+  size_t size; 
+} http_buf_t; 
+
+
+// if we ever wanted to make this nonreentrant, it's not so hard... 
+static http_buf_t http_buf; 
+
+//this is our cURL callback that copies into our buffer
+static size_t save_http(char * ptr, size_t size, size_t nmemb, void * user) 
+{
+  http_buf_t * http_buf = (http_buf_t*) user; 
+
+  if (!http_buf->buf)  // we haven't allocated a buffer yet. let's do it. minimum of 16K or whatever cURL passes us, +1 for null byte
+  {
+    http_buf->size = size*nmemb < 16 * 1024 ? 1+ 16 * 1024 : size*nmemb + 1; 
+    http_buf->buf = malloc(http_buf->size); 
+    if (!http_buf->buf) return 0; 
+  }
+
+  // see if we need a bigger buffer. if we do, allocate twice more what cURL gave us 
+  else if (http_buf->size < http_buf->pos + size * nmemb + 1) 
+  {
+    http_buf->size = http_buf->pos + size*nmemb *2 + 1; 
+    http_buf->buf = realloc( http_buf->buf, http_buf->size); 
+    if (!http_buf->buf) return 0; 
+  }
+  
+
+  //copy into our buffer
+//  printf("memcpy(%x, %x, %u)\n", http_buf + http_buf_pos, ptr, size*nmemb); 
+  memcpy (http_buf->buf + http_buf->pos, ptr, size*nmemb); 
+  http_buf->pos += size * nmemb; 
+  http_buf->buf[http_buf->pos] = 0; // set the null byte
+//  printf("save_http called, buf is :%s\n", http_buf); 
+
+  return size * nmemb;  //if we don't return the size given, cURL gets angry
+}
+
+
+
+static float parse_json_number_like_an_idiot(const char * str, const char * key, const char * after)
+{
+
+  int offset = 0; 
+
+  if (after) 
+  {
+    char * found_after = strstr(str,after);
+    if (found_after) offset = found_after - str; 
+  }
+
+
+  char real_key[128]; // no key can possibly be longer than this? 
+  snprintf(real_key, sizeof(real_key),"\"%s\": ", key); 
+
+  char * start = strstr(str+offset, real_key); 
+  if (!start) return 0; 
+
+  char fmt[132]; 
+  fmt[0]= 0; 
+  strcat(fmt,real_key); 
+  strcat(fmt,"%f"); 
+
+  float f; 
+  int found = sscanf(start, fmt, &f); 
+
+  if (!found) return 0; 
+  return f; 
+}
+
+
+
+static int parse_http(http_buf_t * buf, beacon_hk_t * hk) 
+{
+  
+  //once again, this does the dumbest possible things, and could be faster. but obviously don't matter
+  //look for the inverter battery voltage
+  //assume all inverters have "FX" in them
+  float inv_batt_v = parse_json_number_like_an_idiot(buf->buf, "Batt_V", "\"FX\""); 
+  ///assume the charge controller has "CC" in it
+  float cc_batt_v = parse_json_number_like_an_idiot(buf->buf, "Batt_V","\"CC\""); 
+  float ah = parse_json_number_like_an_idiot(buf->buf, "Out_AH","\"CC\""); 
+  float kwh = parse_json_number_like_an_idiot(buf->buf, "Out_kWh","\"CC\""); 
+  float pv = parse_json_number_like_an_idiot(buf->buf, "In_V","\"CC\""); 
+
+  hk->inv_batt_dV = inv_batt_v *10; 
+  hk->cc_batt_dV = cc_batt_v *10; 
+  hk->pv_dV = pv*10; 
+  hk->cc_daily_Ah = ah; 
+  hk->cc_daily_hWh = kwh * 10; 
+  return 0; 
+}
+
+
+
+void beacon_hk_set_mate3_address(const char * addr, int port)
+{
+
+  if (port) mate3_port = port; 
+  if (mate3_addr) free(mate3_addr); 
+  mate3_addr = 0; 
+  asprintf(&mate3_addr, "http://%s:%d/Dev_status.cgi?Port=0", addr, mate3_port); 
+}
+
+
+static int http_update(beacon_hk_t *hk)
+{
+  if (!mate3_addr) goto fail;
+  if (!curl) 
+  {
+    curl = curl_easy_init(); 
+    if (!curl) goto fail;
+  }
+
+  http_buf.pos = 0; 
+
+  curl_easy_setopt(curl, CURLOPT_URL, mate3_addr); 
+  curl_easy_setopt(curl, CURLOPT_HTTPGET,1); 
+  curl_easy_setopt( curl, CURLOPT_WRITEFUNCTION, save_http); 
+  curl_easy_setopt( curl, CURLOPT_WRITEDATA, &http_buf); 
+  curl_easy_perform(curl); 
+
+  return parse_http(&http_buf, hk); 
+
+fail: 
+  hk->inv_batt_dV = 0; 
+  hk->cc_batt_dV = 0; 
+  hk->pv_dV = 0; 
+  hk->cc_daily_Ah = 0;
+  hk->cc_daily_hWh = 0;
+  return 1; 
+
+}
+
+
 //----------------------------------------
 //The main hk update method 
 //----------------------------------------
@@ -166,7 +316,10 @@ int beacon_hk(beacon_hk_t * hk)
   clock_gettime(CLOCK_REALTIME_COARSE, &now); 
   hk->unixTime = now.tv_sec; 
   hk->unixTimeMillisecs = now.tv_nsec / (1000000); 
-  return 0; 
+
+
+  //load the http stuff
+  return http_update(hk); 
 
 }
 
@@ -223,6 +376,8 @@ static void beacon_hk_destroy()
   //do NOT unexport any of these!
   if (master_fpga_ctl) bbb_gpio_close(master_fpga_ctl,0); 
   if (comm_ctl) bbb_gpio_close(comm_ctl,0); 
+  if (mate3_addr) free(mate3_addr); 
+  if (curl) curl_easy_cleanup(curl); 
 }
 
 
