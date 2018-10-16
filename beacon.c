@@ -842,7 +842,7 @@ int beacon_hk_print(FILE * f, const beacon_hk_t *hk)
   fprintf(f,"     INVERTER BATTERY VOLTAGE: %g V\n", hk->inv_batt_dV / 10.);  
   fprintf(f,"     CC BATTERY VOLTAGE: %g V\n", hk->cc_batt_dV / 10.);  
   fprintf(f,"     PV VOLTAGE: %g V\n", hk->pv_dV / 10.);  
-  fprintf(f,"     CC DAILY CHARGE: %g Ah\n", hk->cc_daily_Ah / 10.);  
+  fprintf(f,"     CC DAILY CHARGE: %g Ah\n", hk->cc_daily_Ah /1. );  
   fprintf(f,"     CC DAILY POWER: %g kwH\n", hk->cc_daily_hWh / 10.);  
   return 0; 
 }
