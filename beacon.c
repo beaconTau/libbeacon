@@ -540,7 +540,11 @@ static int beacon_hk_generic_read(struct generic_file gf, beacon_hk_t *hk)
       got = generic_read(gf,wanted,hk); 
       cksum = stupid_fletcher16(wanted,hk); 
       //set the rest to zero 
-      memset(hk + sizeof(beacon_hk_v0_t), 0, sizeof(beacon_hk_t)-sizeof(beacon_hk_v0_t));  
+      hk->inv_batt_dV = 0;
+      hk->cc_batt_dV = 0;
+      hk->pv_dV = 0;
+      hk->cc_daily_Ah = 0;
+      hk->cc_daily_hWh = 0;
       break; 
     
     case BEACON_HK_VERSION: //this is the most recent hk!
