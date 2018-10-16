@@ -233,8 +233,8 @@ static int parse_http(http_buf_t * buf, beacon_hk_t * hk)
   hk->inv_batt_dV = inv_batt_v *10; 
   hk->cc_batt_dV = cc_batt_v *10; 
   hk->pv_dV = pv*10; 
-  hk->cc_daily_Ah = ah; 
-  hk->cc_daily_hWh = kwh * 10; 
+  hk->cc_daily_Ah = ah > 255 ? 255 : ah; 
+  hk->cc_daily_hWh = kwh > 25.5 ? 255: kwh * 10; 
   return 0; 
 }
 
