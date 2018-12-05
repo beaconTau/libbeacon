@@ -188,6 +188,7 @@ static size_t save_http(char * ptr, size_t size, size_t nmemb, void * user)
 static float parse_json_number_like_an_idiot(const char * str, const char * key, const char * after)
 {
 
+  if (!str) return 0; 
   int offset = 0; 
 
   if (after) 
