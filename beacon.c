@@ -6,9 +6,9 @@
 
 //these need to be incremented if the structs change incompatibly
 //and then generic_*_read must be updated to delegate appropriately. 
-#define BEACON_HEADER_VERSION 1
+#define BEACON_HEADER_VERSION 2
 #define BEACON_EVENT_VERSION 0 
-#define BEACON_STATUS_VERSION 1 
+#define BEACON_STATUS_VERSION 2 
 #define BEACON_HK_VERSION 1 
 
 
@@ -160,10 +160,39 @@ typedef struct beacon_header_v0
   uint8_t sync_problem;                          //!< Various sync problems. TODO convert to enum 
 } beacon_header_v0_t; 
 
+typedef struct beacon_header_v1
+{
+  uint64_t event_number;                              //!< A unique identifier for this event. If only one board, will match readout number. Otherwise, might skip if the boards are out of sync. 
+  uint64_t trig_number;                               //!< the sequential (since reset) trigger number assigned to this event. 
+  uint16_t buffer_length;                             //!< the buffer length. Stored both here and in the event. 
+  uint16_t pretrigger_samples;                        //!< Number of samples that are pretrigger
+  uint32_t readout_time[BN_MAX_BOARDS];          //!< CPU time of readout, seconds
+  uint32_t readout_time_ns[BN_MAX_BOARDS];       //!< CPU time of readout, nanoseconds 
+  uint64_t trig_time[BN_MAX_BOARDS];             //!< Board trigger time (raw units) 
+  uint32_t approx_trigger_time;                       //!< Board trigger time converted to real units (approx secs), master only
+  uint32_t approx_trigger_time_nsecs;                 //!< Board trigger time converted to real units (approx nnsecs), master only
+  uint32_t triggered_beams;                           //!< The beams that triggered 
+  uint32_t beam_mask;                                 //!< The enabled beams
+  uint32_t beam_power;                                //!< The power in the triggered beam
+  uint32_t deadtime[BN_MAX_BOARDS];              //!< ??? Will we have this available? If so, this will be a fraction. (store for slave board as well) 
+  uint8_t buffer_number;                              //!< the buffer number (do we need this?) 
+  uint8_t channel_mask;                               //!< The channels allowed to participate in the trigger
+  uint8_t channel_read_mask[BN_MAX_BOARDS];      //!< The channels actually read
+  uint8_t gate_flag;                                  //!< gate flag  (used to be channel_overflow but that was never used) 
+  uint8_t buffer_mask;                                //!< The buffer mask at time of read out (do we want this?)   
+  uint8_t board_id[BN_MAX_BOARDS];               //!< The board number assigned at startup. If board_id[1] == 0, no slave. 
+  beacon_trig_type_t trig_type;                      //!< The trigger type?
+  beacon_trigger_polarization_t trig_pol;            //!< The trigger polarization
+  uint8_t calpulser;                                  //!< Was the calpulser on? 
+  uint8_t sync_problem;                               //!< Various sync problems. TODO convert to enum 
+  uint32_t pps_counter;                               //!< value of the pps timer at the time of the event
+  uint32_t dynamic_beam_mask;                         //!< the automatic beam masker 
+} beacon_header_v1_t; 
+
 
 
 /* Offsets from start of structs for headers */ 
-const int beacon_header_sizes []=  { sizeof(beacon_header_v0_t), sizeof(beacon_header_t) }; 
+const int beacon_header_sizes []=  { sizeof(beacon_header_v0_t), sizeof(beacon_header_v1_t), sizeof(beacon_header_t) }; 
 
 
 
@@ -221,6 +250,15 @@ static int beacon_header_generic_read(struct generic_file gf, beacon_header_t *h
       h->pps_counter = 0; 
       h->dynamic_beam_mask = 0; 
       break; 
+   case 1: 
+      wanted = sizeof(beacon_header_v1_t); 
+      got = generic_read(gf, wanted, h); 
+      cksum = stupid_fletcher16(wanted, h); 
+      h->pps_counter = 0; 
+      h->dynamic_beam_mask = 0; 
+      h->veto_deadtime_counter = 0; 
+      break; 
+ 
    case BEACON_HEADER_VERSION: //this is the most recent header!
       wanted = sizeof(beacon_header_t); 
       got = generic_read(gf, wanted, h); 
@@ -401,6 +439,19 @@ typedef struct beacon_status_v0
 
 } beacon_status_v0_t; 
 
+typedef struct beacon_status_v1
+{
+  uint16_t global_scalers[BN_NUM_SCALERS];
+  uint16_t beam_scalers[BN_NUM_SCALERS][BN_NUM_BEAMS];  //!< The scaler for each beam (12 bits) 
+  uint32_t deadtime;                                             //!< The deadtime fraction (units tbd) 
+  uint32_t readout_time;                                         //!< CPU time of readout, seconds
+  uint32_t readout_time_ns;                                      //!< CPU time of readout, nanoseconds 
+  uint32_t trigger_thresholds[BN_NUM_BEAMS]; //!< The trigger thresholds  
+  uint64_t latched_pps_time;                                     //!< A timestamp corresponding to a pps time 
+  uint8_t board_id;                                              //!< The board number assigned at startup. 
+  uint32_t dynamic_beam_mask;                                    //!<  the dynamic beam mask 
+} beacon_status_v1_t; 
+
 
 
 
@@ -452,8 +503,14 @@ static int beacon_status_generic_read(struct generic_file gf, beacon_status_t *s
       cksum = stupid_fletcher16(wanted, st); 
       st->board_id = 1; 
       st->dynamic_beam_mask = 0; 
+      st->veto_status = 0; 
       break; 
- 
+   case 1: 
+      wanted = sizeof(beacon_status_v1_t); 
+      got = generic_read(gf, wanted, st); 
+      cksum = stupid_fletcher16(wanted, st); 
+      st->veto_status = 0;
+      break; 
    case BEACON_STATUS_VERSION: //this is the most recent status!
       wanted = sizeof(beacon_status_t); 
       got = generic_read(gf, wanted, st); 

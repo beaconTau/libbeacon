@@ -68,6 +68,8 @@ typedef enum
   REG_PPS_COUNTER        = 0x16, 
   REG_HD_DYN_MASK        = 0x17, 
   REG_USER_MASK          = 0x18,  
+  REG_VETO_DEADTIME_CTR  = 0x19, 
+  REG_VETO_STATUS        = 0x21, 
   REG_ST_DYN_MASK        = 0x22, 
   REG_CHUNK              = 0x23, //which 32-bit chunk  + i 
   REG_SYNC               = 0x27, 
@@ -102,6 +104,9 @@ typedef enum
   REG_TRIGOUT_CONFIG     = 0x53, 
   REG_PHASED_TRIGGER     = 0x54, 
   REG_VERIFICATION_MODE  = 0x55, 
+  REG_TRIGGER_VETOS      = 0x5f,
+  REG_VETO_CUT_0         = 0x60, 
+  REG_VETO_CUT_1         = 0x61, 
   REG_SET_READ_REG       = 0x6d, 
   REG_TRIGGER_LOWPASS    = 0x5a, 
   REG_DYN_MASK           = 0x5d, 
@@ -1512,6 +1517,7 @@ int beacon_read_multiple_ptr(beacon_dev_t * d, beacon_buffer_mask_t mask, beacon
         CHK(append_read_register(d,ibd, REG_TRIG_BEAM_POWER, (uint8_t*)  &hd[iout]->beam_power)); 
         CHK(append_read_register(d,ibd, REG_PPS_COUNTER, (uint8_t*)  &hd[iout]->pps_counter)); 
         CHK(append_read_register(d,ibd, REG_HD_DYN_MASK, (uint8_t*)  &hd[iout]->dynamic_beam_mask)); 
+        CHK(append_read_register(d,ibd, REG_VETO_DEADTIME_CTR, (uint8_t*)  &hd[iout]->veto_deadtime_counter)); 
       }
 
      //flush the metadata .  we could get slightly faster throughput by storing metadata 
@@ -1589,6 +1595,7 @@ int beacon_read_multiple_ptr(beacon_dev_t * d, beacon_buffer_mask_t mask, beacon
         hd[iout]->beam_power = be32toh(hd[iout]->beam_power) & 0xffffff; 
         hd[iout]->pps_counter = be32toh(hd[iout]->pps_counter) & 0xffffff; 
         hd[iout]->dynamic_beam_mask = be32toh(hd[iout]->dynamic_beam_mask) & 0xffffff; 
+        hd[iout]->veto_deadtime_counter = be32toh(hd[iout]->veto_deadtime_counter) & 0xffffff; 
         hd[iout]->buffer_number = hwbuf; 
         hd[iout]->gate_flag = (tmask >> 23) & 1; 
         hd[iout]->buffer_mask = mask; //this is the current buffer mask
@@ -1763,6 +1770,10 @@ int beacon_read_status(beacon_dev_t *d, beacon_status_t * st, beacon_which_board
 
   //also, dynamic beam mask value 
   ret += append_read_register(d,which, REG_ST_DYN_MASK, (uint8_t*) &st->dynamic_beam_mask); 
+
+  uint8_t veto_status[BN_SPI_BYTES]; 
+  //and the veto status
+  ret += append_read_register(d,which, REG_VETO_STATUS, veto_status); 
   
   clock_gettime(CLOCK_REALTIME, &now); 
   ret+= buffer_send(d,which); 
@@ -1774,6 +1785,7 @@ int beacon_read_status(beacon_dev_t *d, beacon_status_t * st, beacon_which_board
   st->deadtime = 0; //TODO 
 
   st->dynamic_beam_mask = be32toh(st->dynamic_beam_mask) & 0xffffff;
+  st->veto_status = veto_status[3] & 0x3; 
 
   uint16_t scaler_values[BN_NUM_SCALERS*(1+BN_NUM_BEAMS)];
   int sv_ind = 0;
@@ -2379,3 +2391,55 @@ int beacon_get_dynamic_masking(beacon_dev_t * d, int * enable, uint8_t * thresho
   return 0; 
 }
 
+
+
+int beacon_set_veto_options(beacon_dev_t * d, const beacon_veto_options_t * opt) 
+{
+
+  int ret;
+  uint8_t trigger_vetos[BN_SPI_BYTES] = { REG_TRIGGER_VETOS, 0, opt->veto_pulse_width, 
+    opt->enable_saturation_cut | ( opt->enable_cw_cut << 1) | (opt->enable_sidesipe_cut << 2) | (opt->enable_extended_cut << 3)
+  };
+  uint8_t veto_cut_0[BN_SPI_BYTES] = { REG_VETO_CUT_0, opt->sideswipe_cut_value, opt->cw_cut_value, opt->saturation_cut_value }; 
+  uint8_t veto_cut_1[BN_SPI_BYTES] = { REG_VETO_CUT_1, 0, 0, opt->extended_cut_value }; 
+
+  USING(d); 
+  buffer_append(d, MASTER, trigger_vetos, 0); 
+  buffer_append(d, MASTER, veto_cut_0, 0); 
+  buffer_append(d, MASTER, veto_cut_1, 0); 
+  ret = buffer_send(d,MASTER); 
+  DONE(d); 
+
+  return ret; 
+}
+
+int beacon_get_veto_options(beacon_dev_t * d, beacon_veto_options_t * opt) 
+{
+
+  int ret;
+  uint8_t trigger_vetos[BN_SPI_BYTES];
+  uint8_t veto_cut_0[BN_SPI_BYTES];
+  uint8_t veto_cut_1[BN_SPI_BYTES]; 
+
+  USING(d); 
+  append_read_register(d, MASTER, REG_TRIGGER_VETOS,trigger_vetos); 
+  append_read_register(d, MASTER, REG_VETO_CUT_0,veto_cut_0); 
+  append_read_register(d, MASTER, REG_VETO_CUT_1,veto_cut_1); 
+  ret = buffer_send(d,MASTER); 
+  DONE(d); 
+
+  if (!ret) 
+  {
+    opt->enable_saturation_cut = trigger_vetos[3] & 1; 
+    opt->enable_cw_cut =       (trigger_vetos[3] >> 1)  & 1; 
+    opt->enable_sidesipe_cut = (trigger_vetos[3] >> 2)  & 1; 
+    opt->enable_extended_cut = (trigger_vetos[3] >> 3)  & 1; 
+    opt->veto_pulse_width = trigger_vetos[2]; 
+    opt->saturation_cut_value = veto_cut_0[3]; 
+    opt->cw_cut_value = veto_cut_0[2]; 
+    opt->sideswipe_cut_value = veto_cut_0[1]; 
+    opt->extended_cut_value = veto_cut_1[3]; 
+  }
+
+  return ret; 
+}

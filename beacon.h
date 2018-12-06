@@ -134,6 +134,7 @@ typedef struct beacon_header
   uint8_t sync_problem;                               //!< Various sync problems. TODO convert to enum 
   uint32_t pps_counter;                               //!< value of the pps timer at the time of the event
   uint32_t dynamic_beam_mask;                         //!< the automatic beam masker 
+  uint32_t veto_deadtime_counter;                     //!< deadtime counter
 } beacon_header_t; 
 
 /**beacon event body.
@@ -173,7 +174,8 @@ typedef struct beacon_status
   ARRAY1D(uint32_t, trigger_thresholds, BN_NUM_BEAMS);           //!< The trigger thresholds    
   uint64_t latched_pps_time;                                     //!< A timestamp corresponding to a pps time 
   uint8_t board_id;                                              //!< The board number assigned at startup. 
-  uint32_t dynamic_beam_mask;                                    //!<  the dynamic beam mask 
+  uint32_t dynamic_beam_mask;                                    //!< The dynamic beam mask 
+  uint8_t  veto_status;                                          //!< The veto status
 } beacon_status_t; 
 
 

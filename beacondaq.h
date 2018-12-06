@@ -96,6 +96,21 @@ typedef enum beacon_reset_type
 
 
 
+typedef struct beacon_veto_options
+{
+  uint8_t veto_pulse_width;    
+  uint8_t saturation_cut_value;
+  uint8_t cw_cut_value;
+  uint8_t extended_cut_value;
+  uint8_t sideswipe_cut_value;
+  uint8_t enable_saturation_cut  : 1; 
+  uint8_t enable_cw_cut          : 1; 
+  uint8_t enable_sidesipe_cut    : 1; 
+  uint8_t enable_extended_cut    : 1;
+ 
+} beacon_veto_options_t; 
+
+
 /** \brief Open a beacon phased array board and initializes it. 
  *
  * This opens a beacon phased array board and returns a pointer to the opaque
@@ -441,6 +456,15 @@ int beacon_set_dynamic_masking(beacon_dev_t *d, int enable, uint8_t threshold, u
 
 /** retrieve the dynamic masking options */ 
 int beacon_get_dynamic_masking(beacon_dev_t *d, int * enable, uint8_t * threshold, uint16_t * holdoff); 
+
+
+/**  Set the veto options */
+int beacon_set_veto_options(beacon_dev_t * d, const beacon_veto_options_t * opt); 
+
+/**  Retrieve the veto options */
+int beacon_get_veto_options(beacon_dev_t * d, beacon_veto_options_t * opt); 
+
+
 
 
 #endif
