@@ -2398,7 +2398,7 @@ int beacon_set_veto_options(beacon_dev_t * d, const beacon_veto_options_t * opt)
 
   int ret;
   uint8_t trigger_vetos[BN_SPI_BYTES] = { REG_TRIGGER_VETOS, 0, opt->veto_pulse_width, 
-    opt->enable_saturation_cut | ( opt->enable_cw_cut << 1) | (opt->enable_sidesipe_cut << 2) | (opt->enable_extended_cut << 3)
+    opt->enable_saturation_cut | ( opt->enable_cw_cut << 1) | (opt->enable_sideswipe_cut << 2) | (opt->enable_extended_cut << 3)
   };
   uint8_t veto_cut_0[BN_SPI_BYTES] = { REG_VETO_CUT_0, opt->sideswipe_cut_value, opt->cw_cut_value, opt->saturation_cut_value }; 
   uint8_t veto_cut_1[BN_SPI_BYTES] = { REG_VETO_CUT_1, 0, 0, opt->extended_cut_value }; 
@@ -2432,7 +2432,7 @@ int beacon_get_veto_options(beacon_dev_t * d, beacon_veto_options_t * opt)
   {
     opt->enable_saturation_cut = trigger_vetos[3] & 1; 
     opt->enable_cw_cut =       (trigger_vetos[3] >> 1)  & 1; 
-    opt->enable_sidesipe_cut = (trigger_vetos[3] >> 2)  & 1; 
+    opt->enable_sideswipe_cut = (trigger_vetos[3] >> 2)  & 1; 
     opt->enable_extended_cut = (trigger_vetos[3] >> 3)  & 1; 
     opt->veto_pulse_width = trigger_vetos[2]; 
     opt->saturation_cut_value = veto_cut_0[3]; 

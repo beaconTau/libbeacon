@@ -59,7 +59,7 @@ typedef struct beacon_ext_input_config
 typedef enum beacon_which_board
 {
   MASTER = 0, 
-  SLAVE =1
+  SLAVE  =1
 } beacon_which_board_t; 
 
 
@@ -105,7 +105,7 @@ typedef struct beacon_veto_options
   uint8_t sideswipe_cut_value;
   uint8_t enable_saturation_cut  : 1; 
   uint8_t enable_cw_cut          : 1; 
-  uint8_t enable_sidesipe_cut    : 1; 
+  uint8_t enable_sideswipe_cut    : 1; 
   uint8_t enable_extended_cut    : 1;
  
 } beacon_veto_options_t; 
