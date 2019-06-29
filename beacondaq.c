@@ -16,6 +16,7 @@
 #include <errno.h> 
 #include <endian.h>
 #include "bbb_gpio.h" 
+#include <math.h>
 
 #define BN_ADDRESS_MAX 256
 #define BN_SPI_BYTES BN_WORD_SIZE
@@ -1572,12 +1573,14 @@ int beacon_read_multiple_ptr(beacon_dev_t * d, beacon_buffer_mask_t mask, beacon
       //values that we only save for the master
       if (ibd == 0)
       {
+        double elapsed; 
         hd[iout]->event_number = d->readout_number_offset + big_event_counter; 
         hd[iout]->trig_number = trig_counter[0] + (trig_counter[1] << 24); 
         hd[iout]->buffer_length = d->buffer_length; 
         hd[iout]->pretrigger_samples = d->pretrigger* 8 * 16; //TODO define these constants somewhere
-        hd[iout]->approx_trigger_time= d->start_time.tv_sec + hd[iout]->trig_time[ibd] / BOARD_CLOCK_HZ; 
-        hd[iout]->approx_trigger_time_nsecs = d->start_time.tv_nsec + (hd[iout]->trig_time[ibd] % BOARD_CLOCK_HZ) *(1.e9 / BOARD_CLOCK_HZ); 
+        elapsed = hd[iout]->trig_time[ibd] * 1./ (BOARD_CLOCK_HZ); 
+        hd[iout]->approx_trigger_time= (int) (d->start_time.tv_sec + elapsed); 
+        hd[iout]->approx_trigger_time_nsecs = d->start_time.tv_nsec + (elapsed -floor(elapsed))*1e9; 
         if (hd[iout]->approx_trigger_time_nsecs > 1e9) 
         {
           hd[iout]->approx_trigger_time++; 
