@@ -51,9 +51,8 @@ typedef struct beacon_trigger_output_config
 
 typedef struct beacon_ext_input_config 
 {
-  uint8_t use_as_trigger : 1; 
-  uint8_t gate_enable : 1; 
-  uint16_t gate_width; 
+  uint8_t use_as_trigger : 1;  //otherwise just as gate for scalers
+  uint16_t trig_delay;         //if used as trigger, delay  is 128 ns * this 
 } beacon_ext_input_config_t; 
 
 typedef enum beacon_which_board

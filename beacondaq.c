@@ -2241,9 +2241,9 @@ int beacon_configure_trigger_output(beacon_dev_t *d, beacon_trigger_output_confi
 int beacon_configure_ext_trigger_in(beacon_dev_t * d, beacon_ext_input_config_t config) 
 {
   uint8_t cfg_buf[BN_SPI_BYTES] = { REG_EXT_INPUT_CONFIG, 
-                                   config.gate_width >> 8,
-                                   config.gate_width & 8,
-                                   (config.use_as_trigger & 1) | ((config.gate_enable & 1)<<1)} ; 
+                                   config.trig_delay >> 8,
+                                   config.trig_delay & 8,
+                                   (config.use_as_trigger & 1) } ; 
   USING(d); 
   int written = do_write(d->fd[MASTER], cfg_buf); 
   DONE(d); 
@@ -2257,8 +2257,7 @@ int beacon_get_ext_trigger_in(beacon_dev_t * d, beacon_ext_input_config_t * conf
   int ret = beacon_read_register(d, REG_EXT_INPUT_CONFIG, cfg_buf, MASTER); 
 
   config->use_as_trigger = cfg_buf[3] & 1; 
-  config->gate_enable = (cfg_buf[3] >> 1)  & 1; 
-  config->gate_width = cfg_buf[2] | (cfg_buf[1] << 8); 
+  config->trig_delay = cfg_buf[2] | (cfg_buf[1] << 8); 
   return ret; 
 }
 
