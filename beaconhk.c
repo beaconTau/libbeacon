@@ -221,6 +221,11 @@ static float parse_json_number_like_an_idiot(const char * str, const char * key,
 static int parse_http(http_buf_t * buf, beacon_hk_t * hk) 
 {
   
+  if (!buf->size || !buf->buf) 
+  {
+    return 1; 
+  }
+
   //once again, this does the dumbest possible things, and could be faster. but obviously don't matter
   //look for the inverter battery voltage
   //assume all inverters have "FX" in them
@@ -264,10 +269,10 @@ static int http_update(beacon_hk_t *hk)
 
   curl_easy_setopt(curl, CURLOPT_URL, mate3_addr); 
   curl_easy_setopt(curl, CURLOPT_HTTPGET,1); 
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT,1); 
   curl_easy_setopt( curl, CURLOPT_WRITEFUNCTION, save_http); 
   curl_easy_setopt( curl, CURLOPT_WRITEDATA, &http_buf); 
-  curl_easy_perform(curl); 
-
+  if (curl_easy_perform(curl)) goto fail; 
   return parse_http(&http_buf, hk); 
 
 fail: 
