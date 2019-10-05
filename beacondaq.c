@@ -519,7 +519,7 @@ static int mark_buffers_done(beacon_dev_t * d,  beacon_buffer_mask_t buf)
 
 
 
-static int loop_over_chunks_half_duplex(beacon_dev_t * d, beacon_which_board_t which,  uint8_t naddr, uint8_t start_address, uint8_t * result) 
+static int loop_over_chunks_half_duplex(beacon_dev_t * d, beacon_which_board_t which,  uint16_t naddr, uint16_t start_address, uint8_t * result) 
 {
 
   int iaddr; 
