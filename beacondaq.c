@@ -105,6 +105,7 @@ typedef enum
   REG_TRIGOUT_CONFIG     = 0x53, 
   REG_PHASED_TRIGGER     = 0x54, 
   REG_VERIFICATION_MODE  = 0x55, 
+  REG_TIMESTAMP_SELECT   = 0x58, 
   REG_TRIGGER_VETOS      = 0x5f,
   REG_VETO_CUT_0         = 0x60, 
   REG_VETO_CUT_1         = 0x61, 
@@ -2148,6 +2149,17 @@ int beacon_reset(beacon_dev_t * d, beacon_reset_t reset_type)
 
   //then reset the counters, measuring the time before and after 
    
+
+   //set to free-running mode
+   
+   for(ibd = 0; ibd < NBD(d); ibd++) 
+   {
+     const uint8_t buf_ts[BN_SPI_BYTES] ={REG_TIMESTAMP_SELECT,0,0,1} ;
+     do_write(d->fd[ibd], buf_ts);
+   }
+
+
+
    struct timespec tbefore; 
    struct timespec tafter; 
    if (NBD(d) > 1) 
