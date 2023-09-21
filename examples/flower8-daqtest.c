@@ -27,7 +27,10 @@ int main ()
   beacon_status_t st; 
   beacon_read_status(b,&st); 
   beacon_status_print(stdout, &st); 
-  while (!beacon_wait_for_and_read_event(b,&hd,&ev, 1));
+  while (beacon_wait_for_and_read_event(b,&hd,&ev, 1))
+  {
+    flower8_force_trigger(b); 
+  }
   beacon_header_print(stdout, &hd); 
   beacon_event_print(stdout, &ev,','); 
   flower8_bouquet_discard(b,1); 
