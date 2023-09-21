@@ -1053,14 +1053,14 @@ int flower8_bouquet_reset(flower8_bouquet_t * b)
 {
   
   flower8_trigger_enables_t store = {0}; 
-  if (!flower8_get_trigger_enables(b,&store))
+  if (flower8_get_trigger_enables(b,&store))
   {
     fprintf(stderr,"Couldn't read trigger enables in reset\n"); 
     return -1; 
   }
   flower8_trigger_enables_t enable = {0} ; 
   flower8_set_trigger_enables(b,enable); 
-  if (!flower8_get_trigger_enables(b,&store))
+  if (flower8_get_trigger_enables(b,&store))
   {
     fprintf(stderr,"Couldn't disable trigger enables in reset\n"); 
     return -1; 
@@ -1069,14 +1069,14 @@ int flower8_bouquet_reset(flower8_bouquet_t * b)
   //reset counters
   flower8_word_t reset_word = { .bytes = { FLWR8_REG_RESET_COUNTERS,1,0,0}}; 
 
-  if (!write_word(b->M, &reset_word) || (b->S && !write_word(b->S,&reset_word)))
+  if (write_word(b->M, &reset_word) || (b->S && write_word(b->S,&reset_word)))
   {
     fprintf(stderr,"Couldn't reset counters\n"); 
     return -1; 
   }
 
   //restore enables
-  if (!flower8_set_trigger_enables(b,store))
+  if (flower8_set_trigger_enables(b,store))
   {
     fprintf(stderr,"Couldn't restore trigger enables in reset\n"); 
     return -1; 
