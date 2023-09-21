@@ -207,7 +207,7 @@ flower8_bouquet_t * flower8_bouquet_prepare(flower8_dev_t * M, flower8_dev_t * S
     // synchronize 
     flower8_word_t sync_word; 
     sync_word.bytes[0] = FLWR8_REG_SYNC; 
-    sync_word.bytes[1] = 2; 
+    sync_word.bytes[3] = 2; 
     if (write_word(b->S,&sync_word)) 
     {
       fprintf(stderr,"stage 0 sync error!!!"); 
@@ -215,7 +215,7 @@ flower8_bouquet_t * flower8_bouquet_prepare(flower8_dev_t * M, flower8_dev_t * S
       return 0; 
     }
 
-    sync_word.bytes[1] = 1; 
+    sync_word.bytes[3] = 1; 
     if (write_word(b->M,&sync_word)) 
     {
       fprintf(stderr,"stage 1 sync error!!!"); 
@@ -224,7 +224,7 @@ flower8_bouquet_t * flower8_bouquet_prepare(flower8_dev_t * M, flower8_dev_t * S
     }
 
     
-    sync_word.bytes[1] = 0; 
+    sync_word.bytes[3] = 0; 
 
     if (write_word(b->M,&sync_word) || write_word(b->S,&sync_word))
     {
@@ -669,14 +669,22 @@ int flower8_bouquet_dump(FILE * f, flower8_bouquet_t * b)
 }
 
 //static flower8_word_t sw_trig_low = {.bytes={FLWR8_REG_FORCE_TRIG,0,0,0}}; 
-static flower8_word_t sw_trig_high = {.bytes={FLWR8_REG_FORCE_TRIG,0,0,1}}; 
+static flower8_word_t sw_trig = {.bytes={FLWR8_REG_FORCE_TRIG,0,0,1}}; 
+static flower8_word_t sync_S = {.bytes={FLWR8_REG_SYNC,0,0,2}}; 
+static flower8_word_t sync_M = {.bytes={FLWR8_REG_SYNC,0,0,1}}; 
+static flower8_word_t sync_N = {.bytes={FLWR8_REG_SYNC,0,0,0}}; 
 
 int flower8_force_trigger(flower8_bouquet_t * b) 
 {
   if (!b || !b->M) return -1; 
   int ret = 0; 
+  ret+= write_word(b->S, &sync_S); 
+  ret+= write_word(b->M, &sync_M); 
 
-  ret+= write_word(b->M, &sw_trig_high); 
+  ret+= write_word(b->M, &sw_trig); 
+  ret+= write_word(b->S, &sw_trig); 
+  ret+= write_word(b->M, &sync_N); 
+  ret+= write_word(b->S, &sync_N); 
 
 
   return ret; 
@@ -985,7 +993,7 @@ int flower8_equalize(flower8_dev_t * dev, float target_rms, uint8_t * v_gain_cod
   {
     flower8_set_gains(dev, gain_codes); 
     write_word(dev,&buffer_clear); 
-    write_word(dev,&sw_trig_high); 
+    write_word(dev,&sw_trig); 
     int avail = 0; 
     while (!avail) flower8_buffer_check(dev,&avail); 
 
@@ -1081,6 +1089,8 @@ int flower8_bouquet_reset(flower8_bouquet_t * b)
     fprintf(stderr,"Couldn't restore trigger enables in reset\n"); 
     return -1; 
   }
+
+
   return 0; 
 }
 
@@ -1110,7 +1120,9 @@ int beacon_wait_for_and_read_event(flower8_bouquet_t * b, beacon_header_t *hd, b
   hd->trig_time[0] = meta.timestamp[0]; 
   hd->trig_time[1] = meta.timestamp[1]; 
   hd->trig_pol = POL_MIXED; 
+  hd->trig_type = 0; 
 
+  ev->event_number = meta.event_number; 
 
   uint8_t * dest[8] = {0};
   int destcnt = 0;
