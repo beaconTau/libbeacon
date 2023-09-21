@@ -1104,7 +1104,7 @@ int beacon_wait_for_and_read_event(flower8_bouquet_t * b, beacon_header_t *hd, b
 {
 
   int ret = flower8_event_wait(b,timeout); 
-  if (ret) return ret; 
+  if (ret!=1) return -1; 
 
   flower8_event_metadata_t meta = {0}; 
   struct timespec now; 
