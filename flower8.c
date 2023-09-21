@@ -2,6 +2,7 @@
 #include <linux/spi/spidev.h> 
 #include <unistd.h> 
 #include <errno.h>
+#include <assert.h>
 #include <sys/ioctl.h> 
 #include <pthread.h>
 #include <sys/file.h> 
@@ -134,6 +135,7 @@ static int export_gpio_if_not_exported(int gpionum)
   if (access(buf, F_OK))
   {
         FILE * fexport = fopen("/sys/class/gpio/export","w");
+        assert(fexport); 
         fprintf(fexport,"%d\n",gpionum);
         fclose(fexport); 
         usleep(100000); //wait to make sure it come up 
@@ -196,7 +198,7 @@ flower8_bouquet_t * flower8_bouquet_prepare(flower8_dev_t * M, flower8_dev_t * S
   {
     //make sure trigger is disabled on S 
     flower8_word_t disable = {.bytes = { FLWR8_REG_TRIG_ENABLES, 0,0,0}} ;
-    if (!write_word(b->S,&disable))
+    if (write_word(b->S,&disable))
     {
       fprintf(stderr,"troubling disabling trigger on S\n"); 
       free(b); return 0; 
@@ -206,7 +208,7 @@ flower8_bouquet_t * flower8_bouquet_prepare(flower8_dev_t * M, flower8_dev_t * S
     flower8_word_t sync_word; 
     sync_word.bytes[0] = FLWR8_REG_SYNC; 
     sync_word.bytes[1] = 2; 
-    if (!write_word(b->S,&sync_word)) 
+    if (write_word(b->S,&sync_word)) 
     {
       fprintf(stderr,"stage 0 sync error!!!"); 
       free(b); 
@@ -214,7 +216,7 @@ flower8_bouquet_t * flower8_bouquet_prepare(flower8_dev_t * M, flower8_dev_t * S
     }
 
     sync_word.bytes[1] = 1; 
-    if (!write_word(b->M,&sync_word)) 
+    if (write_word(b->M,&sync_word)) 
     {
       fprintf(stderr,"stage 1 sync error!!!"); 
       free(b); 
@@ -224,7 +226,7 @@ flower8_bouquet_t * flower8_bouquet_prepare(flower8_dev_t * M, flower8_dev_t * S
     
     sync_word.bytes[1] = 0; 
 
-    if (!write_word(b->M,&sync_word) || !write_word(b->S,&sync_word))
+    if (write_word(b->M,&sync_word) || write_word(b->S,&sync_word))
     {
       fprintf(stderr,"stage 2 sync error!!!"); 
       free(b); 
