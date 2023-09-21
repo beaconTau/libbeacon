@@ -15,10 +15,10 @@ CC=gcc
 LD=gcc
 
 #I'm lazy and using implicit rules for now, which means everything gets the same cflags
-CFLAGS+=-fPIC -g -Wall -Wextra  -D_GNU_SOURCE -O2 -Werror
+CFLAGS+=-fPIC -g -Wall -Wextra  -D_GNU_SOURCE -O2 -Werror -std=gnu17 -D_BEACON_
 LDFLAGS+= -lz -g
 
-DAQ_LDFLAGS+= -lpthread -lcurl -L./ -lbeacon -g 
+DAQ_LDFLAGS+= -lpthread  -L./ -g 
 
 
 ifeq ($(SPI_DEBUG),1)
@@ -41,17 +41,17 @@ INCLUDEDIR=include
 HEADERS = beacon.h 
 OBJS = beacon.o 
 
-DAQ_HEADERS = beacondaq.h beaconhk.h bbb_gpio.h bbb_ain.h 
-DAQ_OBJS =  bbb_gpio.o bbb_ain.o beaconhk.o beacondaq.o 
+DAQ_HEADERS =flower8.h
+DAQ_OBJS =  flower8.o
 
-all: libbeacon.so libbeacondaq.so 
+all: libbeacon.so libflower8.so 
 
 client: libbeacon.so 
 
 libbeacon.so: $(OBJS) $(HEADERS)
 	$(CC) $(LDFLAGS)  -shared $(OBJS) -o $@
 
-libbeacondaq.so: $(DAQ_OBJS) $(DAQ_HEADERS) libbeacon.so 
+libflower8.so: $(DAQ_OBJS) $(DAQ_HEADERS) 
 	$(CC) $(LDFLAGS) $(DAQ_LDFLAGS) -shared $(DAQ_OBJS) -o $@ 
 
 install-doc:
@@ -68,7 +68,7 @@ install-client:  client
 	
 install:  all install-client 
 	install $(DAQ_HEADERS) $(PREFIX)/$(INCLUDEDIR) 
-	install libbeacondaq.so $(PREFIX)/$(LIBDIR)
+	install libflower8.so $(PREFIX)/$(LIBDIR)
 
 
 doc: 
