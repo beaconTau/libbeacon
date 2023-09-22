@@ -766,49 +766,19 @@ int flower8_event_wait(flower8_bouquet_t * b, int timeout)
 
 //TODO 
 //this talks to both boards synchronously even though in principle both are independent!!! 
-int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t chan_mask, uint8_t ** dest)
+int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
 {
 
   if (!dev) return -1; 
-
-
-
-  int nchan  = __builtin_popcount(chan_mask) ; 
-  if (!nchan) return 0; 
-
-  int nchip[2] = 
-  {
-      __builtin_popcount(chan_mask & 0xf), 
-      __builtin_popcount(chan_mask & 0xf0) 
-  }; 
-
-  int dest_i[2][4] = {0}; 
-  int dest_counter; 
-  for (int ichip = 0; ichip <2; ichip++ )
-  {
-    for (int ichan = 0; ichan < 4; ichan++) 
-    {
-      if (chan_mask & (1 << (4*ichip + ichan)))
-      {
-        dest_i[ichip][ichan] = dest_counter++; 
-      }
-      else
-      {
-        dest_i[ichip][ichan] = -1; 
-      }
-    }
-  }
 
 
   static flower8_word_t select_chip[2]  =
   { {.bytes={FLWR8_REG_CHANNEL, 0,0,1}}
   , {.bytes={FLWR8_REG_CHANNEL, 0,0,2}} };
 
-  static flower8_word_t select_data[4]  =
+  static flower8_word_t select_data[2]  =
   { {.bytes={FLWR8_REG_DATA_CHUNK0, 0,0,0}}
   , {.bytes={FLWR8_REG_DATA_CHUNK1, 0,0,0}}
-  , {.bytes={FLWR8_REG_DATA_CHUNK2, 0,0,0}}
-  , {.bytes={FLWR8_REG_DATA_CHUNK3, 0,0,0}}
   };
 
 #define NADDR 1024
@@ -829,48 +799,66 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t chan_mask, ui
   int ret = 0; 
   for (int ichip = 0; ichip < 2; ichip++) 
   {
-    if (!nchip[ichip]) continue; 
 
-    //let's do at most 128 samples at a time to avoid the spi ioctl limit 
+    //let's do this one channel pair at a time
     //we need up to 9 commands per address (set address, 4xread first, 4xread second, to avoid duplexing) if all channels enabled
     //TODO: this can be optimized for partial readouts... 
     //and also to parallelize amongst the boards
+    //
     struct spi_ioc_transfer xfer[321] = {0}; //TODO is this the right number? 
-    int isamp = 0; 
-    while (isamp < nsamps) 
+    for (int chunk = 0; chunk < 2; chunk++)
     {
-      int xfer_counter = 0; 
-      xfer[xfer_counter].tx_buf = (uintptr_t) select_chip[ichip].bytes; 
-      xfer[xfer_counter].rx_buf =0; 
-      xfer[xfer_counter].len =4; 
-      xfer[xfer_counter++].cs_change =1; 
-
-      for (int samp_remaining = 128; samp_remaining >=0; samp_remaining-=4)
+      int isamp = 0; 
+      while (isamp < nsamps) 
       {
-        xfer[xfer_counter].tx_buf = (uintptr_t) select_addr[isamp>>2].bytes; 
-        xfer[xfer_counter].rx_buf = 0;
+        int xfer_counter = 0; 
+        xfer[xfer_counter].tx_buf = (uintptr_t) select_chip[ichip].bytes; 
+        xfer[xfer_counter].rx_buf =0; 
+        xfer[xfer_counter].len =4; 
+        xfer[xfer_counter++].cs_change =1; 
+
+        xfer[xfer_counter].tx_buf = (uintptr_t) select_data[chunk].bytes;
+        xfer[xfer_counter].rx_buf = 0; 
         xfer[xfer_counter].len = 4;
         xfer[xfer_counter++].cs_change = 1;
-        for (int ichan = 0; ichan < 4; ichan++) 
+         
+        //put half the data in one channel, the other half in the other, then interlace afterwards
+        for (int islice = 0; islice < 64; islice++)
         {
-          if (dest_i[ichip][ichan] >= 0) 
-          {
-            xfer[xfer_counter].tx_buf = (uintptr_t) select_data[ichan].bytes;
-            xfer[xfer_counter].rx_buf = 0; 
-            xfer[xfer_counter].len = 4;
-            xfer[xfer_counter++].cs_change = 1;
-            xfer[xfer_counter].rx_buf = (uintptr_t) (&dest[dest_i[ichip][ichan]][isamp]); 
-            xfer[xfer_counter].tx_buf =0;
-            xfer[xfer_counter].len = 4;
-            xfer[xfer_counter++].cs_change = 1;
-          }
+          xfer[xfer_counter].tx_buf = (uintptr_t) select_addr[isamp/2].bytes; 
+          xfer[xfer_counter].rx_buf = 0;
+          xfer[xfer_counter].len = 4;
+          xfer[xfer_counter++].cs_change = 1;
+          xfer[xfer_counter].rx_buf = (uintptr_t) dest[4*ichip + 2*chunk]; 
+          xfer[xfer_counter].tx_buf =0;
+          xfer[xfer_counter].len = 4;
+          xfer[xfer_counter++].cs_change = 1;
+          xfer[xfer_counter].tx_buf = (uintptr_t) select_addr[isamp/2+1].bytes; 
+          xfer[xfer_counter].rx_buf = 0;
+          xfer[xfer_counter].len = 4;
+          xfer[xfer_counter++].cs_change = 1;
+          xfer[xfer_counter].rx_buf = (uintptr_t) dest[4*ichip + 2*chunk+1]; 
+          xfer[xfer_counter].tx_buf =0;
+          xfer[xfer_counter].len = 4;
+          xfer[xfer_counter++].cs_change = 1;
+
+          isamp+=4; 
         }
-        isamp+=4; 
+
+        USING(dev); 
+        ioctl(dev->spi_fd, SPI_IOC_MESSAGE(xfer_counter), xfer); 
+        DONE(dev); 
+      }
+      //deinterlace 
+      for (int isamp =0; isamp < nsamps; isamp+=4)
+      {
+        //TODO: rewrite using ARM intrinsics 
+        uint8_t tmp[2]; 
+        memcpy(tmp, &dest[4*ichip+2*chunk][isamp+2], 2); 
+        memcpy(&dest[4*ichip+2*chunk][isamp+2], &dest[4*ichip+2*chunk+1][isamp],2);
+        memcpy( &dest[4*ichip+2*chunk+1][isamp], tmp, 2);
       }
 
-      USING(dev); 
-      ioctl(dev->spi_fd, SPI_IOC_MESSAGE(xfer_counter), xfer); 
-      DONE(dev); 
     }
   }
  
@@ -997,7 +985,7 @@ int flower8_equalize(flower8_dev_t * dev, float target_rms, uint8_t * v_gain_cod
     int avail = 0; 
     while (!avail) flower8_buffer_check(dev,&avail); 
 
-    flower8_read_waveforms(dev, 1024, 0xff, data_ptrs); 
+    flower8_read_waveforms(dev, 1024, data_ptrs); 
     for (int i = 0; i < FLOWER8_MAX_TRIG_CHAN; i++) 
     {
       if (done & ( 1 << i) || !(mask & (1 << i))) continue; 
@@ -1128,23 +1116,18 @@ int beacon_wait_for_and_read_event(flower8_bouquet_t * b, beacon_header_t *hd, b
   int destcnt = 0;
   for (int ichan = 0; ichan < 8; ichan++)  
   {
-    if (b->read_mask & (1 << (ichan)))
-    {
-      dest[destcnt++] = ev->data[0][ichan]; 
-    }
+   dest[destcnt++] = ev->data[0][ichan]; 
   }
-  flower8_read_waveforms(b->M, b->buflen, b->read_mask & 0xff, dest);
+  flower8_read_waveforms(b->M, b->buflen, dest);
 
   if (b->S) 
   {
+    int destcnt = 0;
     for (int ichan = 0; ichan < 8; ichan++)  
     {
-      if (b->read_mask & (1 << (ichan + 8)))
-      {
-        dest[destcnt++] = ev->data[1][ichan]; 
-      }
+      dest[destcnt++] = ev->data[1][ichan]; 
     }
-    flower8_read_waveforms(b->S, b->buflen, (b->read_mask >> 8) & 0xff, dest);
+    flower8_read_waveforms(b->S, b->buflen, dest);
   }
  
   return 0; 
