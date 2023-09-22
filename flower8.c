@@ -837,7 +837,7 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
           xfer[xfer_counter].rx_buf = 0;
           xfer[xfer_counter].len = 4;
           xfer[xfer_counter++].cs_change = 1;
-          xfer[xfer_counter].rx_buf = (uintptr_t) dest[4*ichip + 2*chunk+1][isamp]; 
+          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip + 2*chunk+1][isamp]; 
           xfer[xfer_counter].tx_buf =0;
           xfer[xfer_counter].len = 4;
           xfer[xfer_counter++].cs_change = 1;
