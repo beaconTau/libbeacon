@@ -1111,6 +1111,7 @@ int beacon_wait_for_and_read_event(flower8_bouquet_t * b, beacon_header_t *hd, b
   hd->trig_type = 0; 
 
   ev->event_number = meta.event_number; 
+  ev->buffer_length = b->buflen; 
 
   uint8_t * dest[8] = {0};
   int destcnt = 0;
