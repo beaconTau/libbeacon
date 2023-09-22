@@ -19,8 +19,8 @@ int main ()
 
   flower8_dev_t * M = flower8_open(devM, spi_en[0], gpio_int[0], 0); 
   flower8_dev_t * S = flower8_open(devS, spi_en[1], gpio_int[1], 0); 
-  flower8_equalize(M,1,0,FLOWER8_EQUALIZE_VERBOSE); 
-  flower8_equalize(S,1,0,FLOWER8_EQUALIZE_VERBOSE); 
+//  flower8_equalize(M,1,0,FLOWER8_EQUALIZE_VERBOSE); 
+//  flower8_equalize(S,1,0,FLOWER8_EQUALIZE_VERBOSE); 
  
   flower8_bouquet_t * b = flower8_bouquet_prepare(M,S); 
 
@@ -29,7 +29,7 @@ int main ()
   beacon_status_t st; 
   beacon_read_status(b,&st); 
   beacon_status_print(stdout, &st); 
-  while (beacon_wait_for_and_read_event(b,&hd,&ev, 1))
+  while (beacon_wait_for_and_read_event(b,&hd,&ev, 100))
   {
     flower8_force_trigger(b); 
   }

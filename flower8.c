@@ -144,6 +144,11 @@ static int export_gpio_if_not_exported(int gpionum)
       return 0; 
 }
 
+static int spi_msg(int fd, int nmsg, struct spi_ioc_transfer * msgs)
+{  
+//   for(int i = 0; i < nmsg;i++) assert(msgs[i].tx_buf != 0 || msgs[i].rx_buf !=0); 	  
+   return ioctl(fd, SPI_IOC_MESSAGE(nmsg), msgs); 
+}
 
 static int write_words(flower8_dev_t *dev, int N,  const flower8_word_t * words) 
 {
@@ -369,8 +374,8 @@ int flower8_read_registers(flower8_dev_t*dev, int nreg,  const uint8_t *  addr, 
     solicit_words[ireg].bytes[3] = addr[i]; 
     xfer[2*ireg].tx_buf = (uintptr_t) solicit_words[ireg].bytes; 
     xfer[2*ireg].len = 4; 
-//    xfer[2*ireg].rx_buf=0; 
-//    xfer[2*ireg+1].tx_buf = 0
+    xfer[2*ireg].rx_buf=0; 
+    xfer[2*ireg+1].tx_buf = 0; 
     xfer[2*ireg+1].rx_buf = (uintptr_t) results[i].bytes; 
     xfer[2*ireg+1].len = 4; 
     ireg++; 
@@ -378,7 +383,7 @@ int flower8_read_registers(flower8_dev_t*dev, int nreg,  const uint8_t *  addr, 
     if (ireg == nregs_at_a_time || i == nreg-1) 
     {
       USING(dev); 
-      ret += ( (int) (ireg*sizeof(flower8_word_t)) != ioctl(dev->spi_fd, SPI_IOC_MESSAGE(2*ireg), xfer)); 
+      ret += ( (int) (ireg*sizeof(flower8_word_t)) != spi_msg(dev->spi_fd, 2*ireg, xfer)); 
       DONE(dev); 
       ireg = 0; 
     }
@@ -536,7 +541,7 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
 
   clock_gettime(CLOCK_REALTIME,&start);
   USING(b->M); 
-  int ret = ioctl(b->M->spi_fd, SPI_IOC_MESSAGE(nxfer), xfer); 
+  int ret = spi_msg(b->M->spi_fd, nxfer, xfer); 
   DONE(b->M); 
   clock_gettime(CLOCK_REALTIME,&end);
 //  printf("status ioctl: %d\n", ret); 
@@ -651,13 +656,10 @@ int flower8_force_trigger(flower8_bouquet_t * b)
   int ret = 0; 
   ret+= write_word(b->S, &sync_S); 
   ret+= write_word(b->M, &sync_M); 
-
   ret+= write_word(b->M, &sw_trig); 
   ret+= write_word(b->S, &sw_trig); 
   ret+= write_word(b->M, &sync_N); 
   ret+= write_word(b->S, &sync_N); 
-
-
   return ret; 
 }
 
@@ -793,7 +795,8 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
         xfer[xfer_counter].rx_buf =0; 
 #define XFER \
         xfer[xfer_counter].len =4; \
-        xfer[xfer_counter++].cs_change =1; 
+        xfer[xfer_counter].cs_change =1; \
+        xfer[xfer_counter++].delay_usecs=1; 
 	XFER
         
         //put half the data in one channel, the other half in the other, then interlace afterwards
@@ -805,14 +808,14 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[0].bytes;
           xfer[xfer_counter].rx_buf = 0; 
 	  XFER
-          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip][isamp]; 
           xfer[xfer_counter].tx_buf =0;
+          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip][isamp]; 
 	  XFER
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[1].bytes;
           xfer[xfer_counter].rx_buf = 0; 
 	  XFER
-          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip + 2][isamp]; 
           xfer[xfer_counter].tx_buf =0;
+          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip + 2][isamp]; 
 	  XFER
           xfer[xfer_counter].tx_buf = (uintptr_t) select_addr[isamp/2+1].bytes; 
           xfer[xfer_counter].rx_buf = 0;
@@ -820,14 +823,14 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[0].bytes;
           xfer[xfer_counter].rx_buf = 0; 
 	  XFER
-          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip+ 1][isamp]; 
           xfer[xfer_counter].tx_buf =0;
+          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip+ 1][isamp]; 
 	  XFER
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[1].bytes;
           xfer[xfer_counter].rx_buf = 0; 
 	  XFER
-          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip+ 3][isamp]; 
           xfer[xfer_counter].tx_buf =0;
+          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip+ 3][isamp]; 
 	  XFER
  
           isamp+=4; 
@@ -838,7 +841,7 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
 	clock_gettime(CLOCK_REALTIME, &ioctl_start);
 #endif
         USING(dev); 
-        ioctl(dev->spi_fd, SPI_IOC_MESSAGE(xfer_counter), xfer); 
+        spi_msg(dev->spi_fd, xfer_counter, xfer); 
         DONE(dev); 
 #ifdef BENCHMARK
 	clock_gettime(CLOCK_REALTIME, &ioctl_stop);
@@ -993,6 +996,7 @@ int flower8_equalize(flower8_dev_t * dev, float target_rms, uint8_t * v_gain_cod
     while (!avail) flower8_buffer_check(dev,&avail); 
 
     flower8_read_waveforms(dev, 1024, data_ptrs); 
+    write_word(dev,&buffer_clear); 
     for (int i = 0; i < FLOWER8_MAX_TRIG_CHAN; i++) 
     {
       if (done & ( 1 << i) || !(mask & (1 << i))) continue; 
@@ -1062,27 +1066,22 @@ int flower8_bouquet_reset(flower8_bouquet_t * b)
     return -1; 
   }
   flower8_trigger_enables_t enable = {0} ; 
-  flower8_set_trigger_enables(b,enable); 
-  if (flower8_get_trigger_enables(b,&store))
+  if (flower8_set_trigger_enables(b,enable))
   {
     fprintf(stderr,"Couldn't disable trigger enables in reset\n"); 
     return -1; 
   }
-  flower8_word_t sync_word; 
   // synchronize 
   if (b->S) 
   {
-    sync_word.bytes[0] = FLWR8_REG_SYNC; 
-    sync_word.bytes[3] = 2; 
-    if (write_word(b->S,&sync_word)) 
+    if (write_word(b->S,&sync_S)) 
     {
       fprintf(stderr,"stage 0 sync error!!!"); 
       free(b); 
       return 0; 
     }
 
-    sync_word.bytes[3] = 1; 
-    if (write_word(b->M,&sync_word)) 
+    if (write_word(b->M,&sync_M)) 
     {
       fprintf(stderr,"stage 1 sync error!!!"); 
       free(b); 
@@ -1092,7 +1091,7 @@ int flower8_bouquet_reset(flower8_bouquet_t * b)
   }
     
  //reset counters
-  flower8_word_t reset_word = { .bytes = { FLWR8_REG_RESET_COUNTERS,1,0,0}}; 
+  flower8_word_t reset_word = { .bytes = { FLWR8_REG_RESET_COUNTERS,0,0,1}}; 
 
   if (write_word(b->M, &reset_word) || (b->S && write_word(b->S,&reset_word)))
   {
@@ -1103,9 +1102,8 @@ int flower8_bouquet_reset(flower8_bouquet_t * b)
 
   if (b->S)
   {
-    sync_word.bytes[3] = 0; 
 
-    if (write_word(b->M,&sync_word) || write_word(b->S,&sync_word))
+    if (write_word(b->M,&sync_N) || write_word(b->S,&sync_N))
     {
       fprintf(stderr,"stage 2 sync error!!!"); 
       free(b); 
@@ -1140,15 +1138,12 @@ int beacon_wait_for_and_read_event(flower8_bouquet_t * b, beacon_header_t *hd, b
 
   flower8_event_metadata_t meta = {0}; 
   struct timespec now; 
-  clock_gettime(CLOCK_REALTIME, &now); 
   flower8_fill_metadata(b,&meta); 
 
   memset(hd,0,sizeof(*hd));
   hd->event_number = meta.event_number;
   hd->trig_number = meta.trig_number;
   hd->buffer_length = b->buflen;
-  hd->readout_time[0] = now.tv_sec; 
-  hd->readout_time_ns[0] = now.tv_nsec; 
   hd->trig_time[0] = meta.timestamp[0]; 
   hd->trig_time[1] = meta.timestamp[1]; 
   hd->trig_pol = POL_MIXED; 
@@ -1157,7 +1152,12 @@ int beacon_wait_for_and_read_event(flower8_bouquet_t * b, beacon_header_t *hd, b
   ev->event_number = meta.event_number; 
   ev->buffer_length = b->buflen; 
   ev->board_id[0] = 1; 
-  if (b->S) ev->board_id[1] =2 ; 
+  hd->board_id[0] = 1; 
+  if (b->S)
+  {
+    hd->board_id[1] =2 ; 
+    ev->board_id[1] =2 ; 
+  }
 
   uint8_t * dest[8] = {0};
   int destcnt = 0;
@@ -1165,7 +1165,10 @@ int beacon_wait_for_and_read_event(flower8_bouquet_t * b, beacon_header_t *hd, b
   {
    dest[destcnt++] = ev->data[0][ichan]; 
   }
+  clock_gettime(CLOCK_REALTIME, &now); 
   flower8_read_waveforms(b->M, b->buflen, dest);
+  hd->readout_time[0] = now.tv_sec; 
+  hd->readout_time_ns[0] = now.tv_nsec; 
 
   if (b->S) 
   {
@@ -1174,9 +1177,13 @@ int beacon_wait_for_and_read_event(flower8_bouquet_t * b, beacon_header_t *hd, b
     {
       dest[destcnt++] = ev->data[1][ichan]; 
     }
+    clock_gettime(CLOCK_REALTIME, &now); 
     flower8_read_waveforms(b->S, b->buflen, dest);
+    hd->readout_time[1] = now.tv_sec; 
+    hd->readout_time_ns[1] = now.tv_nsec; 
   }
  
+  flower8_buffer_clear(b); 
   return 0; 
 }
 
