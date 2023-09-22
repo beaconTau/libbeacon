@@ -181,10 +181,14 @@ enum
   FLOWER8_EQUALIZE_EXCLUDE_CH1 = 2, 
   FLOWER8_EQUALIZE_EXCLUDE_CH2 = 4, 
   FLOWER8_EQUALIZE_EXCLUDE_CH3 = 8, 
+  FLOWER8_EQUALIZE_EXCLUDE_CH4 = 16, 
+  FLOWER8_EQUALIZE_EXCLUDE_CH5 = 32, 
+  FLOWER8_EQUALIZE_EXCLUDE_CH6 = 64, 
+  FLOWER8_EQUALIZE_EXCLUDE_CH7 = 128, 
   FLOWER8_EQUALIZE_VERBOSE = 0x80000000
 }e_flower8_equalize_opts; 
 
-int flower8_equalize(flower8_dev_t*dev, float target_rms, uint8_t * gain_codes, int opts); 
+int flower8_equalize(flower8_dev_t*dev, float target_rms, uint8_t * gain_codes, uint32_t opts); 
 
 typedef struct  flower8_trigger_enables
 {

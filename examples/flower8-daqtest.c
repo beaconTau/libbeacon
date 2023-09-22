@@ -19,6 +19,8 @@ int main ()
 
   flower8_dev_t * M = flower8_open(devM, spi_en[0], gpio_int[0], 0); 
   flower8_dev_t * S = flower8_open(devS, spi_en[1], gpio_int[1], 0); 
+  flower8_equalize(M,1,0,FLOWER8_EQUALIZE_VERBOSE); 
+  flower8_equalize(S,1,0,FLOWER8_EQUALIZE_VERBOSE); 
  
   flower8_bouquet_t * b = flower8_bouquet_prepare(M,S); 
 
