@@ -112,6 +112,10 @@ struct flower8_dev
     flower8_word_t word; 
   } fwdate;
 
+
+  uint32_t readout_tx_scratch[1024]; 
+  uint32_t readout_rx_scratch[1024]; 
+  int8_t readout_rx_dest[1024]; 
 };
 
 
@@ -781,6 +785,7 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
   if (nsamps > NADDR * 2) nsamps = NADDR * 2; 
 
   int ret = 0; 
+#ifdef TURTLE
   struct spi_ioc_transfer xfer[10*SLICE_SIZE+1] = {0}; 
   for (int ichip = 0; ichip < 2; ichip++) 
   {
@@ -797,41 +802,41 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
         xfer[xfer_counter].len =4; \
         xfer[xfer_counter].cs_change =1; \
         xfer[xfer_counter++].delay_usecs=1; 
-	XFER
+        XFER
         
         //put half the data in one channel, the other half in the other, then interlace afterwards
         for (int islice = 0; islice < SLICE_SIZE; islice++)
         {
           xfer[xfer_counter].tx_buf = (uintptr_t) select_addr[isamp/2].bytes; 
           xfer[xfer_counter].rx_buf = 0;
-	  XFER
+          XFER
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[0].bytes;
           xfer[xfer_counter].rx_buf = 0; 
-	  XFER
+          XFER
           xfer[xfer_counter].tx_buf =0;
           xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip][isamp]; 
-	  XFER
+          XFER
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[1].bytes;
           xfer[xfer_counter].rx_buf = 0; 
-	  XFER
+          XFER
           xfer[xfer_counter].tx_buf =0;
           xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip + 2][isamp]; 
-	  XFER
+          XFER
           xfer[xfer_counter].tx_buf = (uintptr_t) select_addr[isamp/2+1].bytes; 
           xfer[xfer_counter].rx_buf = 0;
-	  XFER
+          XFER
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[0].bytes;
           xfer[xfer_counter].rx_buf = 0; 
-	  XFER
+          XFER
           xfer[xfer_counter].tx_buf =0;
           xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip+ 1][isamp]; 
-	  XFER
+          XFER
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[1].bytes;
           xfer[xfer_counter].rx_buf = 0; 
-	  XFER
+          XFER
           xfer[xfer_counter].tx_buf =0;
           xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip+ 3][isamp]; 
-	  XFER
+          XFER
  
           isamp+=4; 
           if(isamp >= nsamps) break; 
@@ -865,6 +870,80 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
      }
 
   }
+
+  //method with scratch buffer
+#else
+  int scratch_i = 0; 
+  int channel_i[8] = {0}; 
+
+#define APPEND_XFER(tx,dest)\
+  dev->readout_tx_scratch[scratch_i] = tx;\
+  dev->readout_rx_dest[scratch_i++] = dest;\
+  dev->readout_tx_scratch[scratch_i] = 0;\
+  dev->readout_rx_dest[scratch_i++] = -1;
+
+  struct spi_ioc_transfer xfer = 
+  { 
+     .tx_buf = (uintptr_t) dev->readout_tx_scratch, 
+     .rx_buf = (uintptr_t) dev->readout_rx_scratch,
+     .speed_hz = 16000000,
+  }; 
+
+  for (int ichip = 0; ichip < 2; ichip++)
+  {
+
+    int isamp = 0; 
+    while (isamp < nsamps)
+    {
+
+      APPEND_XFER(select_chip[ichip].word,-1);
+
+      for (int islice = 0; islice < 32; islice++)
+      {
+         APPEND_XFER(select_addr[isamp/2].word,-1);
+         APPEND_XFER(select_data[0].word,-1);
+         APPEND_XFER(0,2*ichip);
+         APPEND_XFER(select_data[1].word,-1);
+         APPEND_XFER(0,2*ichip);
+         APPEND_XFER(select_addr[isamp/2+1].word,-1);
+         APPEND_XFER(select_data[0].word,-1);
+         APPEND_XFER(0,2*ichip + 1);
+         APPEND_XFER(select_data[1].word,-1);
+         APPEND_XFER(0,2*ichip + 1);
+         isamp+=4; 
+         if(isamp >= nsamps) break; 
+      }
+
+
+      xfer.len = 4 * scratch_i; 
+#ifdef BENCHMARK
+    	clock_gettime(CLOCK_REALTIME, &ioctl_start);
+#endif
+      USING(dev); 
+      spi_msg(dev->spi_fd, 1, &xfer); 
+      DONE(dev); 
+#ifdef BENCHMARK
+      clock_gettime(CLOCK_REALTIME, &ioctl_stop);
+      ioctl_time += ioctl_stop.tv_sec - ioctl_start.tv_sec + 1e-9 * (ioctl_stop.tv_nsec - ioctl_start.tv_nsec);
+      nioctl++; 
+      nxfers++;
+#endif
+      for (int i = 0; i < scratch_i; i++) 
+      {
+         if (dev->readout_rx_dest[i] >=0)
+         {
+            int chpair = dev->readout_rx_dest[i]; 
+            flower8_word_t w = {.word = dev->readout_rx_scratch[i]}; 
+            dest[2*chpair][channel_i[2*chpair]++] = w.bytes[0]; 
+            dest[2*chpair][channel_i[2*chpair]++] = w.bytes[1]; 
+            dest[2*chpair+1][channel_i[2*chpair+1]++] = w.bytes[2]; 
+            dest[2*chpair+1][channel_i[2*chpair+1]++] = w.bytes[3]; 
+         }
+      }
+      scratch_i = 0;
+    }
+  }
+#endif
 
 #ifdef BENCHMARK
   clock_gettime(CLOCK_REALTIME,&stop);
