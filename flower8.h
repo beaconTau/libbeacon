@@ -119,6 +119,7 @@ int flower8_fill_daqstatus(flower8_bouquet_t *dev, flower8_daqstatus_t * st);
 
 int flower8_fill_metadata(flower8_bouquet_t *b,flower8_event_metadata_t* meta); 
 int flower8_read_waveforms(flower8_dev_t * dev, int nsamps, uint8_t ** dest);
+int flower8_set_pretrigger(flower8_bouquet_t *b, uint8_t pretrigger); 
 
 int flower8_force_trigger(flower8_bouquet_t *b); 
 int flower8_event_poll(flower8_bouquet_t * b, int * avail); 

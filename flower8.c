@@ -1207,12 +1207,15 @@ int flower8_bouquet_reset(flower8_bouquet_t * b)
   return 0; 
 }
 
-void flower8_bouquet_set_readmask(flower8_bouquet_t * b, uint16_t mask) 
+int flower8_set_pretrigger(flower8_bouquet_t *b, uint8_t pretrig) 
 {
-  if (!b) return; 
-  b->read_mask = mask; 
+  if (pretrig > 10) pretrig = 10; 
+
+  flower8_word_t word = { .bytes = {FLWR8_REG_PRETRIG, 0, 0,  pretrig & 0xf}}; 
+  return write_word(b->M, &word) || (b->S && write_word(b->S,&word)); 
 }
 
+#ifdef _BEACON_
 int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, beacon_event_t * ev, int timeout) 
 {
 
@@ -1271,6 +1274,7 @@ int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, b
 }
 
 
+
 int beacon_fill_status(flower8_bouquet_t * b, beacon_status_t *s) 
 {
 
@@ -1314,5 +1318,6 @@ int beacon_fill_status(flower8_bouquet_t * b, beacon_status_t *s)
   return 0; 
 }
 
+#endif
 
 
