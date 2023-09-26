@@ -6,7 +6,7 @@ TGraph * makeGraph(const beacon_event_t * ev, int ibd = 0, int ch = 0)
 
   for (int i = 0; i < g->GetN(); i++)
   {
-    g->GetX()[i] = i/1.5; 
+    g->GetX()[i] = i/0.25; 
     g->GetY()[i] = ev->data[ibd][ch][i]; 
   }
    g->GetXaxis()->SetTitle("t (ns)"); 
@@ -46,7 +46,7 @@ void viewer(const char * hdfile, const char * evfile, int i = 0)
       TCanvas *c = new TCanvas(name,title, 1800,1000); 
       c->Divide(2,4); 
 
-      for (int ich = 0; ich < NP_NUM_CHAN; ich++)
+      for (int ich = 0; ich < BN_NUM_CHAN; ich++)
       {
         c->cd(ich+1); 
         if (hd.channel_read_mask[ibd] & (1 << ich))
