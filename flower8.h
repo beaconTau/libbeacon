@@ -102,6 +102,8 @@ void flower8_bouquet_set_readmask(flower8_bouquet_t *b ,uint16_t mask);
 
 int flower8_bouquet_reset(flower8_bouquet_t *b); 
 
+void flower8_set_buffer_length(flower8_bouquet_t *b, uint16_t len); 
+void flower8_set_event_number_offset(flower8_bouquet_t *b, uint64_t offs); 
 
 //this will discard the bouquet. Whether or not the flower boards are clsoed depends on if destroy_flowers iw 1
 int flower8_bouquet_discard(flower8_bouquet_t * bouquet, int destroy_flowers); 

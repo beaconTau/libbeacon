@@ -129,6 +129,7 @@ struct flower8_bouquet
   uint8_t servo_thresh[8]; 
   uint16_t read_mask; 
   uint16_t buflen; 
+  uint64_t event_number_offset; 
 }; 
 
 
@@ -1214,6 +1215,11 @@ int flower8_set_pretrigger(flower8_bouquet_t *b, uint8_t pretrig)
   flower8_word_t word = { .bytes = {FLWR8_REG_PRETRIG, 0, 0,  pretrig & 0xf}}; 
   return write_word(b->M, &word) || (b->S && write_word(b->S,&word)); 
 }
+void flower8_set_buffer_length(flower8_bouquet_t * b, uint16_t len)
+{
+  if (len > 4096) len = 4096; 
+  b->buflen = len; 
+}
 
 #ifdef _BEACON_
 int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, beacon_event_t * ev, int timeout) 
@@ -1227,15 +1233,15 @@ int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, b
   flower8_fill_metadata(b,&meta); 
 
   memset(hd,0,sizeof(*hd));
-  hd->event_number = meta.event_number;
-  hd->trig_number = meta.trig_number;
+  hd->event_number = meta.event_number + b->event_number_offset;
+  hd->trig_number = meta.trig_number + b->event_number_offset;
   hd->buffer_length = b->buflen;
   hd->trig_time[0] = meta.timestamp[0]; 
   hd->trig_time[1] = meta.timestamp[1]; 
   hd->trig_pol = POL_MIXED; 
   hd->trig_type = 0; 
 
-  ev->event_number = meta.event_number; 
+  ev->event_number = meta.event_number + b->event_number_offset; 
   ev->buffer_length = b->buflen; 
   ev->board_id[0] = 1; 
   hd->board_id[0] = 1; 

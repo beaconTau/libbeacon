@@ -167,14 +167,14 @@ typedef struct beacon_status
   uint8_t board_id;                                              //!< The board number assigned at startup. 
   uint32_t dynamic_beam_mask;                                    //!< The dynamic beam mask 
   uint8_t  veto_status;                                          //!< The veto status
-  uint8_t  scaler_type;                                       //! legacy = 0, 1 if using coincidence trigger with 100 mHz scaler, 2 if using coincidence with 100 Hz scaler
+  uint8_t  scaler_type;                                       //! legacy = 0, 1 if using coincidence trigger with 100 Hz scaler, 2 if using coincidence with 100 mHz scaler
   uint64_t latched_pps_count; 
   uint32_t scaler_update_counter; 
   uint16_t global_servo_scalers[BN_NUM_SCALERS];   // for coinc trigger
   uint16_t channel_trig_scalers[BN_NUM_CHAN][BN_NUM_SCALERS];   // for coinc trigger
   uint16_t channel_servo_scalers[BN_NUM_CHAN][BN_NUM_SCALERS];   // for coinc trigger
-  uint16_t channel_trig_thresholds[BN_NUM_CHAN]; 
-  uint16_t channel_servo_thresholds[BN_NUM_CHAN]; 
+  uint8_t channel_trig_thresholds[BN_NUM_CHAN]; 
+  uint8_t channel_servo_thresholds[BN_NUM_CHAN]; 
 } beacon_status_t; 
 
 
@@ -287,9 +287,6 @@ int beacon_hk_read(FILE * f, beacon_hk_t * h);
 /** read this hk from compressed file. The size will be different than sizeof(beacon_hk_t). Returns 0 on success. */ 
 int beacon_hk_gzread(gzFile  f, beacon_hk_t * h); 
 
-#undef ARRAY1D
-#undef ARRAY2D
-#undef ARRAY3D
 
 #ifdef __cplusplus
 }
