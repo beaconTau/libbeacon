@@ -28,10 +28,13 @@ static uint16_t stupid_fletcher16_append(int N, const void * vbuf, uint16_t appe
   uint16_t sum2 = append >> 8;; 
   uint8_t * buf = (uint8_t*) vbuf; 
 
-  for (i = 0; i < N; i++)
+  if (buf) 
   {
-    sum1 =  (sum1 +buf[i]) % 255; 
-    sum2 += (sum1 + sum2) % 255;;
+    for (i = 0; i < N; i++)
+    {
+      sum1 =  (sum1 +buf[i]) % 255; 
+      sum2 += (sum1 + sum2) % 255;;
+    }
   }
 
   return sum1 | (sum2 << 8) ; 
