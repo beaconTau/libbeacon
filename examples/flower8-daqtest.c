@@ -3,6 +3,7 @@
 #define _BEACON_
 #include "flower8.h" 
 #include "beacon.h"
+#include <zlib.h> 
 #include <string.h> 
 
 
@@ -27,6 +28,11 @@ int main ()
   beacon_header_t hd;
   beacon_event_t ev;
   beacon_status_t st; 
+
+  FILE * hdf = fopen("header.dat", "w"); 
+  FILE * evf = fopen("event.dat", "w"); 
+  FILE * stf = fopen("dtatus.dat", "w"); 
+
   beacon_fill_status(b,&st); 
   beacon_status_print(stdout, &st); 
   for (int i = 0; i < 10; i++) 
@@ -35,10 +41,20 @@ int main ()
 	  {
 	    flower8_force_trigger(b); 
 	  }
+    beacon_header_write(hdf, &hd);
+    beacon_event_write(evf, &ev);
+    beacon_status_write(stf, &st);
 	  beacon_header_print(stdout, &hd); 
 	  beacon_event_print(stdout, &ev,','); 
   }
+
+  beacon_fill_status(b,&st); 
+  beacon_status_print(stdout, &st); 
+
   flower8_bouquet_discard(b,1); 
+  fclose(hdf); 
+  fclose(evf); 
+  fclose(stf); 
   return 0; 
 
 }
