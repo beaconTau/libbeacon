@@ -867,13 +867,13 @@ int beacon_status_print(FILE *f, const beacon_status_t *st)
     for (int i = 0; i < 8; i++) 
     {
 
-      fprintf(f,"%02d  |   %03d  |  %03d   |  %04d  |  %04d   |   %04d    |  %04d  |  %04d   |  %04d    \n", 
+      fprintf(f,"%02hhu  |   %03hhu  |  %03hhu   |  %04hu  |  %04hu   |   %04hu    |  %04hu  |  %04hu   |  %04hu    \n", 
                 i , st->channel_trig_thresholds[i], st->channel_servo_thresholds[i], 
                 st->channel_servo_scalers[i][2], st->channel_servo_scalers[i][1], st->channel_servo_scalers[i][0], 
                 st->channel_trig_scalers[i][2], st->channel_trig_scalers[i][1], st->channel_trig_scalers[i][0]); 
     }
 
-    fprintf(f,"gbl |        |        |  %04d  |  %04d   |   %04d    |  %04d  |  %04d   |  %04d  \n", 
+    fprintf(f,"gbl |         |        |  %04hu  |  %04hu   |   %04hu    |  %04hu  |  %04hu   |  %04hu  \n", 
 									  st->global_servo_scalers[2], st->global_servo_scalers[1], st->global_servo_scalers[0],
 									  st->global_scalers[2], st->global_scalers[1], st->global_scalers[0]);
   }
