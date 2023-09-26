@@ -262,7 +262,7 @@ flower8_dev_t * flower8_open(const char * spi_device, int spi_en_gpio, int trig_
 
   }
 
-  int spi_clock = 32000000; 
+  int spi_clock = 12000000; 
   uint8_t mode = 0; 
   uint8_t bits_per_word = 8; 
   ioctl(spi_fd, SPI_IOC_WR_MODE,&mode); 
@@ -550,7 +550,7 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
     ixfer++; 
   }
 
-  int nxfer =  3*32+5 ; 
+  int nxfer =  ixfer; 
 
   clock_gettime(CLOCK_REALTIME,&start);
   USING(b->M); 
@@ -813,6 +813,7 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
           XFER
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[0].bytes;
           xfer[xfer_counter].rx_buf = 0; 
+          xfer[xfer_counter].delay_usecs = 100; 
           XFER
           xfer[xfer_counter].tx_buf =0;
           xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip][isamp]; 
@@ -828,6 +829,7 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
           XFER
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[0].bytes;
           xfer[xfer_counter].rx_buf = 0; 
+          xfer[xfer_counter].delay_usecs = 100; 
           XFER
           xfer[xfer_counter].tx_buf =0;
           xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip+ 1][isamp]; 
@@ -1301,7 +1303,7 @@ int beacon_fill_status(flower8_bouquet_t * b, beacon_status_t *s)
   s->global_servo_scalers[1] = ds.s_1Hz_gated.servo_coinc; 
   s->global_servo_scalers[0] = ds.s_100mHz.servo_coinc; 
 
-  for (int i = 0; i < 8; i++) 
+  for (int i = 0; i < BN_NUM_CHAN; i++) 
   {
     s->channel_trig_scalers[i][2] = ds.s_1Hz.trig_per_chan[i]; 
     s->channel_trig_scalers[i][1] = ds.s_1Hz_gated.trig_per_chan[i]; 
@@ -1309,6 +1311,8 @@ int beacon_fill_status(flower8_bouquet_t * b, beacon_status_t *s)
     s->channel_servo_scalers[i][2] = ds.s_1Hz.servo_per_chan[i]; 
     s->channel_servo_scalers[i][1] = ds.s_1Hz_gated.servo_per_chan[i]; 
     s->channel_servo_scalers[i][0] = ds.s_100mHz.servo_per_chan[i]; 
+    s->channel_trig_thresholds[i] = ds.trig_thresholds[i]; 
+    s->channel_servo_thresholds[i] = ds.servo_thresholds[i]; 
   }
 
   s->readout_time = (int) ds.when; 
