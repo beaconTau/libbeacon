@@ -49,7 +49,7 @@ void viewer(const char * hdfile, const char * evfile, int i = 0)
       for (int ich = 0; ich < BN_NUM_CHAN; ich++)
       {
         c->cd(ich+1); 
-        if (hd.channel_read_mask[ibd] & (1 << ich))
+//        if (hd.channel_read_mask[ibd] & (1 << ich))
         {
           TGraph * g = makeGraph(&ev, ibd, ich); 
           g->Draw("alp"); 
