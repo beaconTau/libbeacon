@@ -15,7 +15,7 @@ CC=gcc
 LD=gcc
 
 #I'm lazy and using implicit rules for now, which means everything gets the same cflags
-CFLAGS+=-fPIC -g -Wall -Wextra  -D_GNU_SOURCE -O2 -Werror -std=gnu17 -D_BEACON_
+CFLAGS+=-fPIC -g -Wall -Wextra  -D_GNU_SOURCE -O2 -Werror -std=gnu17 -D_BEACON_ -DBENCHMARK
 LDFLAGS+= -lz -g
 
 DAQ_LDFLAGS+= -lpthread  -L./ -g 

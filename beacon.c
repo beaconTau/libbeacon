@@ -591,6 +591,7 @@ static int beacon_status_generic_read(struct generic_file gf, beacon_status_t *s
   int got; 
   int wanted; 
   uint16_t cksum; 
+  memset(st,0,sizeof(*st)); 
 
   got = packet_start_read(gf, &start, BEACON_STATUS_MAGIC, BEACON_STATUS_VERSION); 
   if (got) return got; 
@@ -603,22 +604,16 @@ static int beacon_status_generic_read(struct generic_file gf, beacon_status_t *s
       got = generic_read(gf, wanted, st); 
       cksum = stupid_fletcher16(wanted, st); 
       st->board_id = 1; 
-      st->dynamic_beam_mask = 0; 
-      st->veto_status = 0; 
       break; 
    case 1: 
       wanted = sizeof(beacon_status_v1_t); 
       got = generic_read(gf, wanted, st); 
       cksum = stupid_fletcher16(wanted, st); 
-      st->veto_status = 0;
       break; 
    case 2: 
       wanted = sizeof(beacon_status_v1_t); 
       got = generic_read(gf, wanted, st); 
       cksum = stupid_fletcher16(wanted, st); 
-      memset(st->servo_global_scalers,0,sizeof (*st->servo_global_scalers) * BN_NUM_SCALERS);
-      memset(st->channel_trig_scalers,0,sizeof(*st->channel_trig_scalers) * BN_NUM_SCALERS * BN_NUM_CHAN); 
-      memset(st->channel_servo_scalers,0,sizeof(*st->channel_trig_scalers) * BN_NUM_SCALERS * BN_NUM_CHAN); 
       break; 
  
    case BEACON_STATUS_VERSION: //this is the most recent status!
@@ -854,11 +849,33 @@ int beacon_status_print(FILE *f, const beacon_status_t *st)
   fprintf(f,"NuPhase Board 0x%x Status (read at %s.%09d UTC)\n", st->board_id, timstr, st->readout_time_ns); 
   fprintf(f,"latched pps: %"PRIu64"  \n", st->latched_pps_time); 
 
-  fprintf(f,"\t which \t 0.1 Hz, gated 0.1Hz, 1 Hz, threshold, dynamically_masked? \n"); 
-  fprintf(f,"\tGLOBAL: \t%u \t%u \t%u\n", st->global_scalers[SCALER_SLOW], st->global_scalers[SCALER_SLOW_GATED], st->global_scalers[SCALER_FAST]); 
-  for (i = 0; i < BN_NUM_BEAMS; i++)
+  if (!st->scaler_type) 
   {
-    fprintf(f,"\tBEAM %d: \t%u \t%u \t%u \t%u\t %c \n",i, st->beam_scalers[SCALER_SLOW][i], st->beam_scalers[SCALER_SLOW_GATED][i], st->beam_scalers[SCALER_FAST][i], st->beam_thresholds[i], st->dynamic_beam_mask & (1 <<i) ? 'X' :' '); 
+    fprintf(f,"\t which \t 0.1 Hz, gated 0.1Hz, 1 Hz, threshold, dynamically_masked? \n"); 
+    fprintf(f,"\tGLOBAL: \t%u \t%u \t%u\n", st->global_scalers[SCALER_VARIABLE], st->global_scalers[SCALER_GATED], st->global_scalers[SCALER_1HZ]); 
+    for (i = 0; i < BN_NUM_BEAMS; i++)
+    {
+      fprintf(f,"\tBEAM %d: \t%u \t%u \t%u \t%u\t %c \n",i, st->beam_scalers[SCALER_VARIABLE][i], st->beam_scalers[SCALER_GATED][i], st->beam_scalers[SCALER_1HZ][i], st->beam_thresholds[i], st->dynamic_beam_mask & (1 <<i) ? 'X' :' '); 
+    }
+  }
+  else
+  {
+    fprintf(f,"latched pps count: %"PRIu64", scaler_update_counter: %u  \n", st->latched_pps_count, st->scaler_update_counter); 
+    
+      fprintf(f,"CH  | trgthr | srvthr | srv1Hz | srvGate | srv100%sHz | trg1Hz | trgGate | trg100%sHz \n", st->scaler_type == 1 ? " " : "m" , st->scaler_type == 1 ?  "" : "m"); 
+      fprintf(f,"--------------------------------------------------------------------------------------\n"); 
+    for (int i = 0; i < 8; i++) 
+    {
+
+      fprintf(f,"%02d  |   %03d  |  %03d   |  %04d  |  %04d   |   %04d    |  %04d  |  %04d   |  %04d    \n", 
+                i , st->channel_trig_thresholds[i], st->channel_servo_thresholds[i], 
+                st->channel_servo_scalers[i][2], st->channel_servo_scalers[i][1], st->channel_servo_scalers[i][0], 
+                st->channel_trig_scalers[i][2], st->channel_trig_scalers[i][1], st->channel_trig_scalers[i][0]); 
+    }
+
+    fprintf(f,"gbl |        |        |  %04d  |  %04d   |   %04d    |  %04d  |  %04d   |  %04d  \n", 
+									  st->global_servo_scalers[2], st->global_servo_scalers[1], st->global_servo_scalers[0],
+									  st->global_scalers[2], st->global_scalers[1], st->global_scalers[0]);
   }
   return 0; 
 }

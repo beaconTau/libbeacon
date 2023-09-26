@@ -44,13 +44,14 @@ typedef struct flower8_daqstatus
 {
   flower8_scaler_group s_1Hz; 
   flower8_scaler_group s_1Hz_gated; 
-  flower8_scaler_group s_100mHz; 
+  flower8_scaler_group s_100mHz; //100 Hz or 100 mHz, depending on scaler_type
   uint64_t ncycles : 48; 
   uint16_t scaler_counter_1Hz :  16; 
   uint64_t cycle_counter; 
   uint8_t trig_thresholds[FLOWER8_MAX_TRIG_CHAN]; 
   uint8_t servo_thresholds[FLOWER8_MAX_TRIG_CHAN]; 
   double when;
+  uint8_t scaler_type; // type of scalers
 } flower8_daqstatus_t; 
 
 typedef enum flower8_mode
@@ -211,8 +212,8 @@ int flower8_set_trigout_enables(flower8_bouquet_t * dev, flower8_trigout_enables
 int flower8_get_fwversion(flower8_dev_t *dev, uint8_t *major, uint8_t *minor, uint8_t *rev, uint16_t *year, uint8_t *month, uint8_t *day); 
 
 #ifdef _BEACON_ 
-int beacon_wait_for_and_read_event(flower8_bouquet_t * b, beacon_header_t *hd, beacon_event_t* ev, int timeout); 
-int beacon_read_status(flower8_bouquet_t *b, beacon_status_t * st); 
+int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, beacon_event_t* ev, int timeout); 
+int beacon_fill_status(flower8_bouquet_t *b, beacon_status_t * st); 
 
 #endif
 

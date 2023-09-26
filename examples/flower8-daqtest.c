@@ -27,14 +27,17 @@ int main ()
   beacon_header_t hd;
   beacon_event_t ev;
   beacon_status_t st; 
-  beacon_read_status(b,&st); 
+  beacon_fill_status(b,&st); 
   beacon_status_print(stdout, &st); 
-  while (beacon_wait_for_and_read_event(b,&hd,&ev, 100))
+  for (int i = 0; i < 10; i++) 
   {
-    flower8_force_trigger(b); 
+	  while (beacon_wait_for_and_fill_event(b,&hd,&ev, 100))
+	  {
+	    flower8_force_trigger(b); 
+	  }
+	  beacon_header_print(stdout, &hd); 
+	  beacon_event_print(stdout, &ev,','); 
   }
-  beacon_header_print(stdout, &hd); 
-  beacon_event_print(stdout, &ev,','); 
   flower8_bouquet_discard(b,1); 
   return 0; 
 

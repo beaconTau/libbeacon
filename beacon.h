@@ -147,12 +147,10 @@ typedef struct beacon_event
 
 typedef enum beacon_scaler_type
 {
-  SCALER_SLOW, 
-  SCALER_SLOW_GATED,
-  SCALER_FAST
+  SCALER_VARIABLE, 
+  SCALER_GATED,
+  SCALER_1HZ
 } beacon_scaler_type_t; 
-
-#define BN_SCALER_TIME(type) (type==SCALER_FAST ? 1 : 10) 
 
 /** beacon status. 
  * Holds scalers, deadtime, and maybe some other things 
@@ -164,14 +162,19 @@ typedef struct beacon_status
   uint32_t deadtime;                                             //!< The deadtime fraction (units tbd) 
   uint32_t readout_time;                                         //!< CPU time of readout, seconds
   uint32_t readout_time_ns;                                      //!< CPU time of readout, nanoseconds 
-  uint32_t beam_thresholds[BN_NUM_BEAMS];                  //!< The trigger thresholds  for beams
+  uint32_t beam_thresholds[BN_NUM_BEAMS];                       //!< The trigger thresholds  for beams
   uint64_t latched_pps_time;                                     //!< A timestamp corresponding to a pps time 
   uint8_t board_id;                                              //!< The board number assigned at startup. 
   uint32_t dynamic_beam_mask;                                    //!< The dynamic beam mask 
   uint8_t  veto_status;                                          //!< The veto status
-  uint16_t servo_global_scalers[BN_NUM_SCALERS];   // for coinc trigger
+  uint8_t  scaler_type;                                       //! legacy = 0, 1 if using coincidence trigger with 100 mHz scaler, 2 if using coincidence with 100 Hz scaler
+  uint64_t latched_pps_count; 
+  uint32_t scaler_update_counter; 
+  uint16_t global_servo_scalers[BN_NUM_SCALERS];   // for coinc trigger
   uint16_t channel_trig_scalers[BN_NUM_CHAN][BN_NUM_SCALERS];   // for coinc trigger
   uint16_t channel_servo_scalers[BN_NUM_CHAN][BN_NUM_SCALERS];   // for coinc trigger
+  uint16_t channel_trig_thresholds[BN_NUM_CHAN]; 
+  uint16_t channel_servo_thresholds[BN_NUM_CHAN]; 
 } beacon_status_t; 
 
 

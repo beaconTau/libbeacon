@@ -16,6 +16,7 @@
 #include <time.h>
 #include <math.h>
 
+#define TURTLE
 
 typedef enum
 {
@@ -260,7 +261,7 @@ flower8_dev_t * flower8_open(const char * spi_device, int spi_en_gpio, int trig_
 
   }
 
-  int spi_clock = 16000000; 
+  int spi_clock = 32000000; 
   uint8_t mode = 0; 
   uint8_t bits_per_word = 8; 
   ioctl(spi_fd, SPI_IOC_WR_MODE,&mode); 
@@ -486,7 +487,8 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
 
   if (!b || !b->M) return -1; 
 
-  #define MAX_DSNMSG (3*(21)+5)
+
+  #define MAX_DSNMSG (3*(32)+5)
 
   struct spi_ioc_transfer xfer[MAX_DSNMSG] = {0}; 
 
@@ -495,7 +497,7 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
   static flower8_word_t update_tlow = {.bytes = {FLWR8_REG_SET_READ_REG,0,0,FLWR8_REG_SCAL_TIME_LOW}}; 
   static flower8_word_t update_thigh = {.bytes = {FLWR8_REG_SET_READ_REG,0,0,FLWR8_REG_SCAL_TIME_HIGH}}; 
   flower8_word_t dest_scaler[34] = {0}; 
-  uint16_t raw_scalers[64]; 
+  uint16_t raw_scalers[64]; // this will be ocpied from dest_scaler
   flower8_word_t dest_time[2] = {0}; 
 
   struct timespec start;
@@ -523,17 +525,23 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
   xfer[4].rx_buf  = (uintptr_t) dest_time[1].bytes;
   xfer[4].len = sizeof(flower8_word_t); 
 
+  xfer[3].tx_buf  =  (uintptr_t)update_thigh.bytes; 
+  xfer[3].len = sizeof(flower8_word_t); 
+  xfer[4].rx_buf  = (uintptr_t) dest_time[1].bytes;
+  xfer[4].len = sizeof(flower8_word_t); 
+
+
+
   int ixfer = 0; 
-  int max_reg = b->M->fwver_int < 8 ? 32 : 34; 
+  int max_reg = 34; 
   for (int ireg = 0; ireg <max_reg; ireg++) 
   {
-    if (ireg == 18) ireg=31; //scalers 36-61 are empty
+    if (ireg == 29) ireg=31; //scalers 58-61 are empty
     xfer[3*ixfer+5].tx_buf = (uintptr_t) scal_sel_regs[ireg].bytes; 
     xfer[3*ixfer+5].len = sizeof(flower8_word_t);
     xfer[3*ixfer+5].rx_buf = 0;
     xfer[3*ixfer+6].tx_buf =  (uintptr_t)selectread_word.bytes; 
     xfer[3*ixfer+6].rx_buf = 0;
-//    xfer[3*ixfer+6].cs_change = 1;
     xfer[3*ixfer+6].len = sizeof(flower8_word_t);
     xfer[3*ixfer+7].rx_buf =  (uintptr_t )dest_scaler[ireg].bytes; // will have to finagle these after
     xfer[3*ixfer+7].len = sizeof(flower8_word_t);
@@ -541,7 +549,7 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
     ixfer++; 
   }
 
-  int nxfer =  (b->M->fwver_int < 8) ? 3*19+5 : 3*21+5; 
+  int nxfer =  3*32+5 ; 
 
   clock_gettime(CLOCK_REALTIME,&start);
   USING(b->M); 
@@ -551,6 +559,7 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
 //  printf("status ioctl: %d\n", ret); 
 
   ds->when = (start.tv_sec*0.5 + end.tv_sec*0.5) + 1e-9*(start.tv_nsec*0.5 + end.tv_nsec*0.5); 
+  ds->scaler_type = 1; 
 
   if (ret > 0) 
   {
@@ -563,41 +572,32 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
     }
 
     ds->s_1Hz.trig_coinc = raw_scalers[0];
-    for (int i = 0; i < 4; i++) ds->s_1Hz.trig_per_chan[i] = raw_scalers[1+i]; 
-    ds->s_1Hz.servo_coinc = raw_scalers[5];
-    for (int i = 0; i < 4; i++) ds->s_1Hz.servo_per_chan[i] = raw_scalers[6+i]; 
-    ds->s_1Hz_gated.trig_coinc = raw_scalers[12];
-    for (int i = 0; i < 4; i++) ds->s_1Hz_gated.trig_per_chan[i] = raw_scalers[13+i]; 
-    ds->s_1Hz_gated.servo_coinc = raw_scalers[12+5];
-    for (int i = 0; i < 4; i++) ds->s_1Hz_gated.servo_per_chan[i] = raw_scalers[18+i]; 
-    ds->s_100mHz.trig_coinc = raw_scalers[24];
-    for (int i = 0; i < 4; i++) ds->s_100mHz.trig_per_chan[i] = raw_scalers[25+i]; 
-    ds->s_100mHz.servo_coinc = raw_scalers[24+5];
-    for (int i = 0; i < 4; i++) ds->s_100mHz.servo_per_chan[i] = raw_scalers[30+i]; 
+    for (int i = 0; i < 8; i++) ds->s_1Hz.trig_per_chan[i] = raw_scalers[1+i]; 
+    ds->s_1Hz.servo_coinc = raw_scalers[9];
+    for (int i = 0; i < 8; i++) ds->s_1Hz.servo_per_chan[i] = raw_scalers[10+i]; 
+    ds->s_1Hz_gated.trig_coinc = raw_scalers[20];
+    for (int i = 0; i < 8; i++) ds->s_1Hz_gated.trig_per_chan[i] = raw_scalers[21+i]; 
+    ds->s_1Hz_gated.servo_coinc = raw_scalers[29];
+    for (int i = 0; i < 8; i++) ds->s_1Hz_gated.servo_per_chan[i] = raw_scalers[30+i]; 
+    ds->s_100mHz.trig_coinc = raw_scalers[40];
+    for (int i = 0; i < 8; i++) ds->s_100mHz.trig_per_chan[i] = raw_scalers[41+i]; 
+    ds->s_100mHz.servo_coinc = raw_scalers[49];
+    for (int i = 0; i < 8; i++) ds->s_100mHz.servo_per_chan[i] = raw_scalers[50+i]; 
     
 
     uint64_t t_low = ( be32toh(dest_time[0].word) & 0xffffff ); 
     uint64_t t_high = ( be32toh(dest_time[1].word) & 0xffffff ); 
     ds->ncycles =  t_low | t_high << 24; 
     ds->scaler_counter_1Hz = raw_scalers[63]; 
-
-    //printf("scaler 0x20: %x %x %x %x\n", dest_scaler[32].bytes[0], dest_scaler[32].bytes[1], dest_scaler[32].bytes[2], dest_scaler[32].bytes[3]); 
-    //printf("scaler 0x21: %x %x %x %x\n", dest_scaler[33].bytes[0], dest_scaler[33].bytes[1], dest_scaler[33].bytes[2], dest_scaler[33].bytes[3]); 
-    if (max_reg > 32) 
-    {
-      uint64_t cyc_low =( be32toh(dest_scaler[32].word) & 0xffffff);  
-      uint64_t cyc_high =( be32toh(dest_scaler[33].word) & 0xffffff);  
-      ds->cycle_counter = cyc_low  | (cyc_high << 24); 
-    }
-    else
-    {
-      ds->cycle_counter = 0; 
-
-    }
+    uint64_t cyc_low =( be32toh(dest_scaler[32].word) & 0xffffff);  
+    uint64_t cyc_high =( be32toh(dest_scaler[33].word) & 0xffffff);  
+    ds->cycle_counter = cyc_low  | (cyc_high << 24); 
 
     return 0; 
   }
-  return ret ?: -1; 
+
+  return -1; 
+
 }
 
 int flower8_dump(FILE * f, flower8_dev_t *dev) 
@@ -801,7 +801,7 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
 #define XFER \
         xfer[xfer_counter].len =4; \
         xfer[xfer_counter].cs_change =1; \
-        xfer[xfer_counter++].delay_usecs=1; 
+        xfer[xfer_counter++].delay_usecs=0; 
         XFER
         
         //put half the data in one channel, the other half in the other, then interlace afterwards
@@ -879,14 +879,13 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
 #define APPEND_XFER(tx,dest)\
   dev->readout_tx_scratch[scratch_i] = tx;\
   dev->readout_rx_dest[scratch_i++] = dest;\
-  dev->readout_tx_scratch[scratch_i] = 0;\
-  dev->readout_rx_dest[scratch_i++] = -1;
+//  dev->readout_tx_scratch[scratch_i] = 0;  dev->readout_rx_dest[scratch_i++] = -1;
 
   struct spi_ioc_transfer xfer = 
   { 
      .tx_buf = (uintptr_t) dev->readout_tx_scratch, 
      .rx_buf = (uintptr_t) dev->readout_rx_scratch,
-     .speed_hz = 16000000,
+     .speed_hz = 1500000,
   }; 
 
   for (int ichip = 0; ichip < 2; ichip++)
@@ -1026,18 +1025,23 @@ int flower8_fill_metadata(flower8_bouquet_t *b,flower8_event_metadata_t* meta)
     flower8_read_registers(b->S, 5, regs, wS);
     if (wS[0].word != wM[0].word || wS[1].word != wM[1].word )
     {
-      fprintf(stderr, "event# mismatch! [ %x,%x], [%x, %x]\n", wM[0].word, wM[1].word, wS[0].word, wS[1].word);
+      fprintf(stderr, "event# mismatch! [ %x,%x], [%x, %x]\n", be32toh(wM[0].word), be32toh(wM[1].word), be32toh(wS[0].word), be32toh(wS[1].word));
     }
+    if (wS[2].word != wM[2].word || wS[3].word != wM[3].word )
+    {
+      fprintf(stderr, "trigtime mismatch! [ 0x%x,0x%x], [0x%x, 0x%x]\n", be32toh(wM[2].word), be32toh(wM[3].word), be32toh(wS[2].word), be32toh(wS[3].word));
+    }
+ 
   }
 
   meta->event_number = be32toh(wM[0].word) & 0xffffff; 
   meta->trig_number = be32toh(wM[1].word) & 0xffffff; 
-  meta->timestamp[0] = be32toh(wM[2].word) & 0xffffff; 
-  meta->timestamp[0] |= ( (uint64_t) be32toh(wM[3].word) & 0xffffff) << 24; 
+  meta->timestamp[0] = be32toh(wM[3].word) & 0xffffff; 
+  meta->timestamp[0] |= ( (uint64_t) be32toh(wM[2].word) & 0xffffff) << 24; 
   if (b->S)
   {
-    meta->timestamp[1] = be32toh(wS[2].word) & 0xffffff; 
-    meta->timestamp[1] |= ( (uint64_t) be32toh(wS[3].word) & 0xffffff) << 24; 
+    meta->timestamp[1] = be32toh(wS[3].word) & 0xffffff; 
+    meta->timestamp[1] |= ( (uint64_t) be32toh(wS[2].word) & 0xffffff) << 24; 
   }
   meta->trig_type = wM[4].bytes[3]  &0xf; 
   meta->pps = wM[4].bytes[2]; 
@@ -1209,7 +1213,7 @@ void flower8_bouquet_set_readmask(flower8_bouquet_t * b, uint16_t mask)
   b->read_mask = mask; 
 }
 
-int beacon_wait_for_and_read_event(flower8_bouquet_t * b, beacon_header_t *hd, beacon_event_t * ev, int timeout) 
+int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, beacon_event_t * ev, int timeout) 
 {
 
   int ret = flower8_event_wait(b,timeout); 
@@ -1267,12 +1271,45 @@ int beacon_wait_for_and_read_event(flower8_bouquet_t * b, beacon_header_t *hd, b
 }
 
 
-int beacon_read_status(flower8_bouquet_t * b, beacon_status_t *s) 
+int beacon_fill_status(flower8_bouquet_t * b, beacon_status_t *s) 
 {
 
   if (!b || !b->M) return -1; 
 
   memset(s,0,sizeof(*s));
+
+  flower8_daqstatus_t ds; 
+  if (flower8_fill_daqstatus(b,&ds))
+  {
+    fprintf(stderr,"Problem reading daqstatus?\n"); 
+  }
+
+  s->global_scalers[2] = ds.s_1Hz.trig_coinc; 
+  s->global_scalers[1] = ds.s_1Hz_gated.trig_coinc; 
+  s->global_scalers[0] = ds.s_100mHz.trig_coinc; 
+  s->global_servo_scalers[2] = ds.s_1Hz.servo_coinc; 
+  s->global_servo_scalers[1] = ds.s_1Hz_gated.servo_coinc; 
+  s->global_servo_scalers[0] = ds.s_100mHz.servo_coinc; 
+
+  for (int i = 0; i < 8; i++) 
+  {
+    s->channel_trig_scalers[i][2] = ds.s_1Hz.trig_per_chan[i]; 
+    s->channel_trig_scalers[i][1] = ds.s_1Hz_gated.trig_per_chan[i]; 
+    s->channel_trig_scalers[i][0] = ds.s_100mHz.trig_per_chan[i]; 
+    s->channel_servo_scalers[i][2] = ds.s_1Hz.servo_per_chan[i]; 
+    s->channel_servo_scalers[i][1] = ds.s_1Hz_gated.servo_per_chan[i]; 
+    s->channel_servo_scalers[i][0] = ds.s_100mHz.servo_per_chan[i]; 
+  }
+
+  s->readout_time = (int) ds.when; 
+  s->readout_time_ns = 1e9 * ( ds.when - s->readout_time); 
+
+  s->latched_pps_time = ds.ncycles; 
+  s->board_id = 1; 
+  s->deadtime = -1; 
+  s->scaler_type = ds.scaler_type;
+  s->latched_pps_count= ds.cycle_counter; 
+  s->scaler_update_counter = ds.scaler_counter_1Hz; 
 
   return 0; 
 }
