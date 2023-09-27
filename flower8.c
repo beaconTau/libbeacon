@@ -1004,9 +1004,12 @@ static double getrms(int N, uint8_t* X)
 
 
 int flower8_set_trigger_enables(flower8_bouquet_t *b, flower8_trigger_enables_t enables)
+
 {
-  flower8_word_t word = {.bytes = {FLWR8_REG_TRIG_ENABLES, enables.enable_extin, enables.enable_coinc, enables.enable_pps }}; 
-  return write_word(b->M,&word); 
+  //not sure if extin should be 1 but... let's just do it? 
+  flower8_word_t tin = {.bytes = {FLWR8_REG_TRIG_ENABLES,0, enables.enable_coinc, enables.enable_pps }}; 
+  flower8_word_t tout = {.bytes={FLWR8_REG_SMATRIG,0,enables.enable_pps,enables.enable_coinc}};
+  return write_word(b->M,&tin) || write_word(b->M,&tout); 
 }
 
 int flower8_get_trigger_enables(flower8_bouquet_t *b, flower8_trigger_enables_t *enables)
@@ -1056,11 +1059,6 @@ int flower8_fill_metadata(flower8_bouquet_t *b,flower8_event_metadata_t* meta)
   return 0; 
 }
 
-int flower8_set_trigout_enables(flower8_bouquet_t * b, flower8_trigout_enables_t enables) 
-{
-  flower8_word_t word = {.bytes={FLWR8_REG_SMATRIG,0,enables.enable_pps_auxout,enables.enable_rf_auxout}};
-  return write_word(b->M, &word); 
-}
 
 int flower8_equalize(flower8_dev_t * dev, float target_rms, uint8_t * v_gain_codes, uint32_t opts)
 {
@@ -1095,7 +1093,7 @@ int flower8_equalize(flower8_dev_t * dev, float target_rms, uint8_t * v_gain_cod
 
       if (verbose) printf("ch: %d, gain_code: %d, rms: %f\n", i, gain_codes[i], rms[i]); 
 
-      if (rms[i] < target_rms && gain_codes[i] < FLOWER8_GAIN_TOO_HIGH) 
+      if (rms[i] < target_rms && gain_codes[i] < (FLOWER8_GAIN_TOO_HIGH-1)) 
       {
         gain_codes[i]++; 
       }
@@ -1158,11 +1156,23 @@ int flower8_bouquet_reset(flower8_bouquet_t * b)
   }
 
 
-  flower8_word_t senables = { .bytes={FLWR8_REG_TRIG_ENABLES, 1,0,0}}; 
-  //only enable external trigger for S 
-  write_word(b->S, &senables); 
+  if (b->S) 
+  {
+    //disable trigout for S 
+    flower8_word_t souts = { .bytes={FLWR8_REG_SMATRIG, 0,0,0}}; 
+    write_word(b->S, &souts); 
+  }
  
-  
+  //clear buffers in case there are any left
+  flower8_buffer_clear(b); 
+
+  if (b->S) 
+  {
+    //only enable external trigger for S 
+    flower8_word_t senables = { .bytes={FLWR8_REG_TRIG_ENABLES, 1,0,0}}; 
+    write_word(b->S, &senables); 
+  }
+
   // synchronize 
   if (b->S) 
   {
@@ -1203,7 +1213,10 @@ int flower8_bouquet_reset(flower8_bouquet_t * b)
     }
   }
 
+  //discard a force trigger? 
 
+  flower8_force_trigger(b); 
+  flower8_buffer_clear(b); 
 
   return 0; 
 }
