@@ -381,9 +381,11 @@ int flower8_read_registers(flower8_dev_t*dev, int nreg,  const uint8_t *  addr, 
     xfer[2*ireg].tx_buf = (uintptr_t) solicit_words[ireg].bytes; 
     xfer[2*ireg].len = 4; 
     xfer[2*ireg].rx_buf=0; 
+    xfer[2*ireg].cs_change=1; 
     xfer[2*ireg+1].tx_buf = 0; 
     xfer[2*ireg+1].rx_buf = (uintptr_t) results[i].bytes; 
     xfer[2*ireg+1].len = 4; 
+    xfer[2*ireg+1].cs_change=1; 
     ireg++; 
 
     if (ireg == nregs_at_a_time || i == nreg-1) 
@@ -515,22 +517,21 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
   
   xfer[0].tx_buf = (uintptr_t) update_word.bytes; 
   xfer[0].len = sizeof(flower8_word_t); 
+  xfer[0].cs_change = 1; 
 
   xfer[1].tx_buf  = (uintptr_t) update_tlow.bytes; 
   xfer[1].len = sizeof(flower8_word_t); 
+  xfer[1].cs_change = 1; 
   xfer[2].rx_buf  = (uintptr_t) dest_time[0].bytes;
   xfer[2].len = sizeof(flower8_word_t); 
+  xfer[2].cs_change = 1; 
 
   xfer[3].tx_buf  =  (uintptr_t)update_thigh.bytes; 
   xfer[3].len = sizeof(flower8_word_t); 
+  xfer[3].cs_change = 1; 
   xfer[4].rx_buf  = (uintptr_t) dest_time[1].bytes;
   xfer[4].len = sizeof(flower8_word_t); 
-
-  xfer[3].tx_buf  =  (uintptr_t)update_thigh.bytes; 
-  xfer[3].len = sizeof(flower8_word_t); 
-  xfer[4].rx_buf  = (uintptr_t) dest_time[1].bytes;
-  xfer[4].len = sizeof(flower8_word_t); 
-
+  xfer[4].cs_change = 1; 
 
 
   int ixfer = 0; 
@@ -541,12 +542,15 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
     xfer[3*ixfer+5].tx_buf = (uintptr_t) scal_sel_regs[ireg].bytes; 
     xfer[3*ixfer+5].len = sizeof(flower8_word_t);
     xfer[3*ixfer+5].rx_buf = 0;
+    xfer[3*ixfer+5].cs_change=1; 
     xfer[3*ixfer+6].tx_buf =  (uintptr_t)selectread_word.bytes; 
     xfer[3*ixfer+6].rx_buf = 0;
+    xfer[3*ixfer+6].cs_change=1; 
     xfer[3*ixfer+6].len = sizeof(flower8_word_t);
     xfer[3*ixfer+7].rx_buf =  (uintptr_t )dest_scaler[ireg].bytes; // will have to finagle these after
     xfer[3*ixfer+7].len = sizeof(flower8_word_t);
     xfer[3*ixfer+7].tx_buf =  0; 
+    xfer[3*ixfer+7].cs_change=1; 
     ixfer++; 
   }
 
