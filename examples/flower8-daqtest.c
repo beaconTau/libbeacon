@@ -22,6 +22,14 @@ int main ()
   flower8_dev_t * S = flower8_open(devS, spi_en[1], gpio_int[1], 0); 
 //  flower8_equalize(M,1,0,FLOWER8_EQUALIZE_VERBOSE); 
 //  flower8_equalize(S,1,0,FLOWER8_EQUALIZE_VERBOSE); 
+  uint8_t gains[8] = { 
+	  FLOWER8_GAIN_10X, FLOWER8_GAIN_10X,
+	  FLOWER8_GAIN_10X, FLOWER8_GAIN_10X,
+	  FLOWER8_GAIN_10X, FLOWER8_GAIN_10X,
+	  FLOWER8_GAIN_10X, FLOWER8_GAIN_10X}; 
+
+  flower8_set_gains(M,gains);
+  flower8_set_gains(S,gains);
  
   flower8_bouquet_t * b = flower8_bouquet_prepare(M,S); 
   flower8_trigger_enables_t t_enables = {.enable_coinc = 1}; 
@@ -45,10 +53,10 @@ int main ()
   beacon_status_print(stdout, &st); 
   for (int i = 0; i < 10; i++) 
   {
-    while (beacon_wait_for_and_fill_event(b,&hd,&ev, 100))
+    while (beacon_wait_for_and_fill_event(b,&hd,&ev, 1000))
     {
 //      printf("Sending force trigger\n"); 
- //     flower8_force_trigger(b); 
+//      flower8_force_trigger(b); 
     }
     beacon_header_write(hdf, &hd);
     beacon_event_write(evf, &ev);
