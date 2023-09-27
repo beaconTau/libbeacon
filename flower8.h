@@ -130,14 +130,6 @@ int flower8_event_wait(flower8_bouquet_t * b, int  timeout);
 int flower8_buffer_clear(flower8_bouquet_t * dev); 
 
 
-typedef struct  flower8_trigout_enables
-{
-  uint8_t enable_rf_sysout : 1; 
-  uint8_t enable_rf_auxout : 1; 
-  uint8_t enable_pps_sysout : 1; 
-  uint8_t enable_pps_auxout : 1; 
-} flower8_trigout_enables_t; 
-
 enum 
 {
   FLOWER8_GAIN_1X, 
@@ -197,7 +189,6 @@ int flower8_equalize(flower8_dev_t*dev, float target_rms, uint8_t * gain_codes, 
 typedef struct  flower8_trigger_enables
 {
   uint8_t enable_pps : 1; 
-  uint8_t enable_extin : 1; 
   uint8_t enable_coinc : 1; 
 } flower8_trigger_enables_t; 
 
@@ -212,7 +203,6 @@ int flower8_set_delayed_pps_delay(flower8_dev_t * dev, uint32_t delay);
 int flower8_get_delayed_pps_delay(flower8_dev_t * dev, uint32_t  *delay); 
 
 
-int flower8_set_trigout_enables(flower8_bouquet_t * dev, flower8_trigout_enables_t enables); 
 int flower8_get_fwversion(flower8_dev_t *dev, uint8_t *major, uint8_t *minor, uint8_t *rev, uint16_t *year, uint8_t *month, uint8_t *day); 
 
 #ifdef _BEACON_ 
