@@ -11,7 +11,7 @@ TGraph * makeGraph(const beacon_event_t * ev, int ibd = 0, int ch = 0)
   }
    g->GetXaxis()->SetTitle("t (ns)"); 
    g->GetYaxis()->SetTitle("adu"); 
-   g->SetTitle(TString::Format("%s ch %d", ibd == 0 ? "MASTER" : "SLAVE", ch)); 
+   g->SetTitle(TString::Format("%s ch %d", ibd == 0 ? "M" : "S", ch)); 
    g->SetName(TString::Format("g_%d_%d",ibd,ch));  
    g->SetEditable(false); 
 
@@ -36,7 +36,7 @@ void viewer(const char * hdfile, const char * evfile, int i = 0)
 
   beacon_header_print(stdout, &hd); 
   
-  for (int ibd = 0; ibd < 1; ibd++)
+  for (int ibd = 0; ibd < 2; ibd++)
   {
     if (ev.board_id[ibd])
     {

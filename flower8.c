@@ -135,6 +135,12 @@ struct flower8_bouquet
 
 
 
+void flower8_set_event_number_offset(flower8_bouquet_t *b, uint64_t ofst) 
+{
+
+  b->event_number_offset = ofst; 
+}
+
 static int export_gpio_if_not_exported(int gpionum) 
 {
   char buf[128]; 
