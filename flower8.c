@@ -71,6 +71,7 @@ typedef enum
 
 typedef enum
 {
+  HMCAD_ADR_QUAD_CGAIN = 0x2A, 
   HMCAD_ADR_DUAL_CGAIN = 0x2B, 
   HMCAD_ADR_CGAIN_CFG = 0x33 
 } e_hmcad_reg; 
@@ -977,13 +978,15 @@ int flower8_set_gains(flower8_dev_t *dev, const uint8_t * codes)
       {.bytes=
          { 
             FLWR8_REG_CFG_REG1,
-            HMCAD_ADR_DUAL_CGAIN,
+            HMCAD_ADR_QUAD_CGAIN,
             (codes[4*ichip+2] & 0xf)  | ((codes[4*ichip+3] & 0xf) << 4),
             (codes[4*ichip] & 0xf)  | ((codes[4*ichip+1] & 0xf) << 4)
          }
       }
     };
-    write_words(dev,3,words); 
+    write_word(dev,&words[0]);
+    write_word(dev,&words[1]);
+    write_word(dev,&words[2]);
   }
   return 0; 
 } 
@@ -1215,8 +1218,8 @@ int flower8_bouquet_reset(flower8_bouquet_t * b)
 
   //discard a force trigger? 
 
-  flower8_force_trigger(b); 
-  flower8_buffer_clear(b); 
+//  flower8_force_trigger(b); 
+//  flower8_buffer_clear(b); 
 
   return 0; 
 }
