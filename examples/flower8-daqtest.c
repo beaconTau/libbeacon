@@ -27,7 +27,6 @@ int main ()
   flower8_trigger_enables_t t_enables = {.enable_coinc = 1}; 
   flower8_set_trigger_enables(b,t_enables); 
   flower8_trigger_config_t tcfg = {.vpp_mode = 0, .num_coinc = 0, .window = 10 }; 
-
   flower8_configure_trigger(b, tcfg); 
   uint8_t trig_thresh[8] = { 10,10,10,10,10,10,10,10}; 
   uint8_t servo_thresh[8] = { 8,8,8,8,8,8,8,8}; 
@@ -45,10 +44,10 @@ int main ()
   beacon_status_print(stdout, &st); 
   for (int i = 0; i < 10; i++) 
   {
-    while (beacon_wait_for_and_fill_event(b,&hd,&ev, 100))
+    while (beacon_wait_for_and_fill_event(b,&hd,&ev, 1000))
     {
-//      printf("Sending force trigger\n"); 
- //     flower8_force_trigger(b); 
+      printf("Sending force trigger\n"); 
+      flower8_force_trigger(b); 
     }
     beacon_header_write(hdf, &hd);
     beacon_event_write(evf, &ev);
