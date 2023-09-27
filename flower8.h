@@ -197,6 +197,7 @@ int flower8_equalize(flower8_dev_t*dev, float target_rms, uint8_t * gain_codes, 
 typedef struct  flower8_trigger_enables
 {
   uint8_t enable_pps : 1; 
+  uint8_t enable_extin : 1; 
   uint8_t enable_coinc : 1; 
 } flower8_trigger_enables_t; 
 

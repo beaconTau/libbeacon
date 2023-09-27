@@ -1005,7 +1005,7 @@ static double getrms(int N, uint8_t* X)
 
 int flower8_set_trigger_enables(flower8_bouquet_t *b, flower8_trigger_enables_t enables)
 {
-  flower8_word_t word = {.bytes = {FLWR8_REG_TRIG_ENABLES, 0, enables.enable_coinc, enables.enable_pps }}; 
+  flower8_word_t word = {.bytes = {FLWR8_REG_TRIG_ENABLES, enables.enable_extin, enables.enable_coinc, enables.enable_pps }}; 
   return write_word(b->M,&word); 
 }
 
@@ -1032,7 +1032,7 @@ int flower8_fill_metadata(flower8_bouquet_t *b,flower8_event_metadata_t* meta)
     flower8_read_registers(b->S, 5, regs, wS);
     if (wS[0].word != wM[0].word || wS[1].word != wM[1].word )
     {
-      fprintf(stderr, "event# mismatch! [ %x,%x], [%x, %x]\n", be32toh(wM[0].word), be32toh(wM[1].word), be32toh(wS[0].word), be32toh(wS[1].word));
+      fprintf(stderr, "event# mismatch! [ 0x%x,0x%0x], [0x%0x, 0x%0x]\n", be32toh(wM[0].word), be32toh(wM[1].word), be32toh(wS[0].word), be32toh(wS[1].word));
     }
     if (wS[2].word != wM[2].word || wS[3].word != wM[3].word )
     {
@@ -1149,18 +1149,20 @@ int flower8_get_delayed_pps_delay(flower8_dev_t * dev, uint32_t *delay)
 int flower8_bouquet_reset(flower8_bouquet_t * b) 
 {
   
-  flower8_trigger_enables_t store = {0}; 
-  if (flower8_get_trigger_enables(b,&store))
-  {
-    fprintf(stderr,"Couldn't read trigger enables in reset\n"); 
-    return -1; 
-  }
+  //disable all triggers
   flower8_trigger_enables_t enable = {0} ; 
   if (flower8_set_trigger_enables(b,enable))
   {
     fprintf(stderr,"Couldn't disable trigger enables in reset\n"); 
     return -1; 
   }
+
+
+  flower8_word_t senables = { .bytes={FLWR8_REG_TRIG_ENABLES, 1,0,0}}; 
+  //only enable external trigger for S 
+  write_word(b->S, &senables); 
+ 
+  
   // synchronize 
   if (b->S) 
   {
@@ -1201,14 +1203,6 @@ int flower8_bouquet_reset(flower8_bouquet_t * b)
     }
   }
 
-
-
-   //restore enables
-  if (flower8_set_trigger_enables(b,store))
-  {
-    fprintf(stderr,"Couldn't restore trigger enables in reset\n"); 
-    return -1; 
-  }
 
 
   return 0; 
