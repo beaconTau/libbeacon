@@ -16,9 +16,9 @@
 #include <time.h>
 #include <math.h>
 
-//#define SAFE
-#define GOLDILOCKS
-#define PARALLEL_READOUT
+#define SAFE
+//#define GOLDILOCKS
+//#define PARALLEL_READOUT
 
 typedef enum
 {
@@ -444,11 +444,12 @@ int flower8_read_registers(flower8_dev_t*dev, int nreg,  const uint8_t *  addr, 
     xfer[2*ireg].len = 4; 
     xfer[2*ireg].rx_buf=0; 
     xfer[2*ireg].cs_change=1; 
-    xfer[2*ireg].delay_usecs=50; 
+    xfer[2*ireg].delay_usecs=0; 
     xfer[2*ireg+1].tx_buf = 0; 
     xfer[2*ireg+1].rx_buf = (uintptr_t) results[i].bytes; 
     xfer[2*ireg+1].len = 4; 
     xfer[2*ireg+1].cs_change=1; 
+    xfer[2*ireg+1].delay_usecs=0; 
     ireg++; 
 
     if (ireg == nregs_at_a_time || i == nreg-1) 
@@ -863,7 +864,7 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
       }
   }
 #else
-  static flower8_word_t select_chunk1[2]  = {{0}, {.bytes={FLWR8_REG_DATA_CHUNK1, 0,0,0}}};
+  static flower8_word_t select_chunk1[3]  = {{0}, {0}, {.bytes={FLWR8_REG_DATA_CHUNK1, 0,0,0}}};
   static flower8_word_t select_addr[NADDR][3] = {0}; 
   static flower8_word_t select_chip[2][3]  =
   { 
@@ -903,47 +904,47 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
         int xfer_counter = 0; 
         xfer[xfer_counter].tx_buf = (uintptr_t) select_chip[ichip].bytes; 
         xfer[xfer_counter].rx_buf =0; 
-#define XFER \
+#define XFER(delay) \
         xfer[xfer_counter].len =4; \
-        xfer[xfer_counter].cs_change =1; \
-        xfer[xfer_counter++].delay_usecs=0; 
-        XFER
+        xfer[xfer_counter].speed_hz =12000000; \
+        xfer[xfer_counter].delay_usecs =delay; \
+        xfer[xfer_counter++].cs_change =1; 
+        XFER(0)
         
         //put half the data in one channel, the other half in the other, then interlace afterwards
         for (int islice = 0; islice < SLICE_SIZE; islice++)
         {
           xfer[xfer_counter].tx_buf = (uintptr_t) select_addr[isamp/2].bytes; 
           xfer[xfer_counter].rx_buf = 0;
-          XFER
+          XFER(0)
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[0].bytes;
           xfer[xfer_counter].rx_buf = 0; 
-          xfer[xfer_counter].delay_usecs = 100; 
-          XFER
+          XFER(0)
           xfer[xfer_counter].tx_buf =0;
           xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip][isamp]; 
-          XFER
+          XFER(0)
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[1].bytes;
           xfer[xfer_counter].rx_buf = 0; 
-          XFER
+          XFER(0)
           xfer[xfer_counter].tx_buf =0;
           xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip + 2][isamp]; 
-          XFER
+          XFER(0)
           xfer[xfer_counter].tx_buf = (uintptr_t) select_addr[isamp/2+1].bytes; 
           xfer[xfer_counter].rx_buf = 0;
-          XFER
+          XFER(0)
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[0].bytes;
           xfer[xfer_counter].rx_buf = 0; 
           xfer[xfer_counter].delay_usecs = 100; 
-          XFER
+          XFER(0)
           xfer[xfer_counter].tx_buf =0;
           xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip+ 1][isamp]; 
-          XFER
+          XFER(0)
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[1].bytes;
           xfer[xfer_counter].rx_buf = 0; 
-          XFER
+          XFER(0)
           xfer[xfer_counter].tx_buf =0;
           xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip+ 3][isamp]; 
-          XFER
+          XFER(0)
  
           isamp+=4; 
           if(isamp >= nsamps) break; 
@@ -996,7 +997,7 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
       int xfer_counter = 0; 
 #define XFER(tx,rx,length) \
         xfer[xfer_counter].tx_buf = (uintptr_t) (tx ); \
-        xfer[xfer_counter].rx_buf = (uintptr_t) ( (rx) ? dev->readout_rx_dest + rx_i: 0) ; \
+        xfer[xfer_counter].rx_buf = (uintptr_t) ( (rx) ? (dev->readout_rx_scratch + rx_i): 0) ; \
         xfer[xfer_counter].len =  length ; \
         if (rx) \
         {\
@@ -1012,15 +1013,15 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
        //if this is the first iteration, we start with a select_chip, otherwise it's a readout
        XFER( islice == 0 ? select_chip[ichip][0].bytes : select_addr[isamp/2][0].bytes,
              islice > 0, 12); 
-       XFER( select_chunk1, 1, 8); 
+       XFER( select_chunk1, 1, 12); 
        XFER ( select_addr[isamp/2+1][0].bytes, 1, 12); 
-       XFER(select_chunk1,1,8);
+       XFER(select_chunk1,1,12);
        isamp+= 4; 
        if (isamp >= nsamps) break; 
      }
 
      //we have one more read, actually! 
-     XFER(0,1,4); 
+     XFER(0,1,12); 
 #ifdef BENCHMARK
     	clock_gettime(CLOCK_REALTIME, &ioctl_start);
 #endif
@@ -1440,45 +1441,42 @@ int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, b
     ev->board_id[1] =2 ; 
   }
 
-  uint8_t * dest[8] = {0};
+  uint8_t * destM[8] = {0};
+  uint8_t * destS[8] = {0};
   int destcnt = 0;
   for (int ichan = 0; ichan < 8; ichan++)  
   {
-   dest[destcnt++] = ev->data[0][ichan]; 
+    destM[destcnt] = ev->data[0][ichan]; 
+    destS[destcnt++] = ev->data[1][ichan]; 
   }
 #ifdef PARALLEL_READOUT
   pthread_mutex_lock(&b->M->work_mutex); 
   b->M->work.nsamps = b->buflen; 
-  b->M->work.dest = dest; 
+  b->M->work.dest = destM; 
   pthread_cond_signal(&b->M->work_ready);
   hd->readout_time[0] = b->M->work.start_time.tv_sec; 
   hd->readout_time_ns[0] = b->M->work.start_time.tv_nsec; 
   pthread_mutex_unlock(&b->M->work_mutex); 
 #else
   clock_gettime(CLOCK_REALTIME, &now); 
-  flower8_read_waveforms(b->M, b->buflen, dest);
+  flower8_read_waveforms(b->M, b->buflen, destM);
   hd->readout_time[0] = now.tv_sec; 
   hd->readout_time_ns[0] = now.tv_nsec; 
 #endif
 
   if (b->S) 
   {
-    int destcnt = 0;
-    for (int ichan = 0; ichan < 8; ichan++)  
-    {
-      dest[destcnt++] = ev->data[1][ichan]; 
-    }
 #ifdef PARALLEL_READOUT
     pthread_mutex_lock(&b->S->work_mutex); 
     b->S->work.nsamps = b->buflen; 
-    b->S->work.dest = dest; 
+    b->S->work.dest = destS; 
     pthread_cond_signal(&b->S->work_ready);
     hd->readout_time[1] = b->S->work.start_time.tv_sec; 
     hd->readout_time_ns[1] = b->S->work.start_time.tv_nsec; 
     pthread_mutex_unlock(&b->S->work_mutex); 
 #else
     clock_gettime(CLOCK_REALTIME, &now); 
-    flower8_read_waveforms(b->S, b->buflen, dest);
+    flower8_read_waveforms(b->S, b->buflen, destS);
     hd->readout_time[1] = now.tv_sec; 
     hd->readout_time_ns[1] = now.tv_nsec; 
 #endif
