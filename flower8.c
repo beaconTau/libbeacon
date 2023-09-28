@@ -751,12 +751,16 @@ int flower8_force_trigger(flower8_bouquet_t * b)
 {
   if (!b || !b->M) return -1; 
   int ret = 0; 
-  ret+= write_word(b->S, &sync_S); 
-  ret+= write_word(b->M, &sync_M); 
-  ret+= write_word(b->M, &sw_trig); 
-  ret+= write_word(b->S, &sw_trig); 
-  ret+= write_word(b->M, &sync_N); 
-  ret+= write_word(b->S, &sync_N); 
+  USING(b->S); 
+  USING(b->M); 
+  ret+= write_word_unlocked(b->S, &sync_S); 
+  ret+= write_word_unlocked(b->M, &sync_M); 
+  ret+= write_word_unlocked(b->M, &sw_trig); 
+  ret+= write_word_unlocked(b->S, &sw_trig); 
+  ret+= write_word_unlocked(b->M, &sync_N); 
+  ret+= write_word_unlocked(b->S, &sync_N); 
+  DONE(b->S); 
+  DONE(b->M); 
   return ret; 
 }
 
