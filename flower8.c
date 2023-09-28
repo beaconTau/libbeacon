@@ -18,6 +18,7 @@
 
 //#define SAFE
 #define GOLDILOCKS
+#define PARALLEL_READOUT
 
 typedef enum
 {
@@ -80,6 +81,7 @@ typedef enum
 #define USING(d) if (d->enable_locking) pthread_mutex_lock(&d->lock);
 #define DONE(d)  if (d->enable_locking) pthread_mutex_unlock(&d->lock);
 
+
 struct flower8_dev
 {
   int spi_fd; 
@@ -88,8 +90,19 @@ struct flower8_dev
   int interrupt_fd; 
   int enable_locking; 
   pthread_mutex_t lock; //lock for spi bus 
-  pthread_t M_acq_thread;
-  pthread_t S_acq;
+#ifdef PARALLEL_READOUT
+  volatile int alive; 
+  pthread_t acq_work_thread;
+  struct acq_work
+  {
+    int nsamps; 
+    uint8_t ** dest; 
+    struct timespec start_time;
+    struct timespec end_time;
+  } work; 
+  pthread_cond_t work_ready; 
+  pthread_mutex_t work_mutex; 
+#endif
   int flags; 
   struct pollfd interrupt_fdset; 
   union
@@ -128,6 +141,32 @@ struct flower8_dev
   int8_t readout_rx_dest[1024]; 
 #endif
 };
+
+#ifdef PARALLEL_READOUT
+void * acq_worker(void* d)
+{
+  flower8_dev_t * dev = (flower8_dev_t *) d ; 
+
+  pthread_mutex_lock(&dev->work_mutex); 
+  while (dev->alive)
+  {
+    pthread_cond_wait(&dev->work_ready, &dev->work_mutex); 
+    if (!dev->alive)
+    {
+      break; 
+    }
+
+    //otherwise, we are ready to do an acquisition! 
+    clock_gettime(CLOCK_MONOTONIC, &dev->work.start_time); 
+    flower8_read_waveforms(dev, dev->work.nsamps, dev->work.dest);
+    clock_gettime(CLOCK_MONOTONIC, &dev->work.end_time); 
+  }
+
+  pthread_mutex_unlock(&dev->work_mutex); 
+  return NULL; 
+}
+
+#endif
 
 
 struct flower8_bouquet
@@ -275,7 +314,6 @@ flower8_dev_t * flower8_open(const char * spi_device, int spi_en_gpio, int trig_
   {
     dev->enable_locking = 1; 
     pthread_mutex_init(&dev->lock,0); 
-
   }
 
   int spi_clock = 12000000; 
@@ -364,7 +402,15 @@ flower8_dev_t * flower8_open(const char * spi_device, int spi_en_gpio, int trig_
   dev->fwdate.date.day = word.bytes[3]; 
   dev->fwdate.date.month = word.bytes[2] & 0xf; 
   dev->fwdate.date.year = (((uint32_t)word.bytes[1]) << 4) | (word.bytes[2] >> 4); 
-  
+
+  #ifdef PARALLEL_READOUT
+  pthread_mutex_init(&dev->work_mutex,0); 
+  pthread_cond_init(&dev->work_ready,0); 
+  pthread_create(&dev->acq_work_thread, 0, acq_worker, dev); 
+  dev->alive = 1; 
+#endif
+
+
 
   return dev; 
 }
@@ -477,6 +523,16 @@ int flower8_bouquet_discard(flower8_bouquet_t *b, int trash)
 int flower8_close(flower8_dev_t * dev)
 {
   if (!dev) return -1; 
+
+#ifdef PARALLEL_READOUT
+  dev->alive = 0; 
+  pthread_mutex_lock(&dev->work_mutex); 
+  pthread_cond_signal(&dev->work_ready); 
+  pthread_mutex_unlock(&dev->work_mutex); 
+  pthread_join(dev->acq_work_thread,NULL); 
+#endif
+
+
   flock(dev->spi_fd, LOCK_UN); 
   close(dev->spi_fd); 
   if (dev->spi_enable_file) 
@@ -1359,7 +1415,9 @@ int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, b
   if (ret!=1) return -1; 
 
   flower8_event_metadata_t meta = {0}; 
+#ifndef PARALLEL_READOUT
   struct timespec now; 
+#endif
   flower8_fill_metadata(b,&meta); 
 
   memset(hd,0,sizeof(*hd));
@@ -1387,10 +1445,20 @@ int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, b
   {
    dest[destcnt++] = ev->data[0][ichan]; 
   }
+#ifdef PARALLEL_READOUT
+  pthread_mutex_lock(&b->M->work_mutex); 
+  b->M->work.nsamps = b->buflen; 
+  b->M->work.dest = dest; 
+  pthread_cond_signal(&b->M->work_ready);
+  hd->readout_time[0] = b->M->work.start_time.tv_sec; 
+  hd->readout_time_ns[0] = b->M->work.start_time.tv_nsec; 
+  pthread_mutex_unlock(&b->M->work_mutex); 
+#else
   clock_gettime(CLOCK_REALTIME, &now); 
   flower8_read_waveforms(b->M, b->buflen, dest);
   hd->readout_time[0] = now.tv_sec; 
   hd->readout_time_ns[0] = now.tv_nsec; 
+#endif
 
   if (b->S) 
   {
@@ -1399,10 +1467,20 @@ int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, b
     {
       dest[destcnt++] = ev->data[1][ichan]; 
     }
+#ifdef PARALLEL_READOUT
+    pthread_mutex_lock(&b->S->work_mutex); 
+    b->S->work.nsamps = b->buflen; 
+    b->S->work.dest = dest; 
+    pthread_cond_signal(&b->S->work_ready);
+    hd->readout_time[1] = b->S->work.start_time.tv_sec; 
+    hd->readout_time_ns[1] = b->S->work.start_time.tv_nsec; 
+    pthread_mutex_unlock(&b->S->work_mutex); 
+#else
     clock_gettime(CLOCK_REALTIME, &now); 
     flower8_read_waveforms(b->S, b->buflen, dest);
     hd->readout_time[1] = now.tv_sec; 
     hd->readout_time_ns[1] = now.tv_nsec; 
+#endif
   }
  
   flower8_buffer_clear(b); 
