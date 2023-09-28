@@ -52,7 +52,7 @@ int main (int nargs, char ** args)
   FILE * result = fopen("scan-result.txt","w"); 
 
   fprintf(result,"threshold,rate\n"); 
-  for (int ithresh = 2; ithresh <= 50; ithresh+=1)
+  for (int ithresh = 2; ithresh <= 50; ithresh+=2)
   {
 	  int sthresh =ithresh-1;
 	  uint8_t trig_thresh[8] = { ithresh,ithresh,ithresh,ithresh,ithresh,ithresh,ithresh,ithresh}; 
