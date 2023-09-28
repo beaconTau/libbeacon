@@ -565,7 +565,7 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
   if (!b || !b->M) return -1; 
 
 
-  #define MAX_DSNMSG (3*(32)+5)
+  #define MAX_DSNMSG (3*(30)+5)
 
   struct spi_ioc_transfer xfer[MAX_DSNMSG] = {0}; 
 
@@ -612,6 +612,8 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
   int max_reg = 34; 
   for (int ireg = 0; ireg <max_reg; ireg++) 
   {
+	  if (ireg == 9) ireg++;  
+	  if (ireg == 19) ireg++;  
     if (ireg == 29) ireg=31; //scalers 58-61 are empty
     xfer[3*ixfer+5].tx_buf = (uintptr_t) scal_sel_regs[ireg].bytes; 
     xfer[3*ixfer+5].len = sizeof(flower8_word_t);
@@ -628,7 +630,7 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
     ixfer++; 
   }
 
-  int nxfer =  ixfer; 
+  int nxfer =  3*ixfer+5; 
 
   clock_gettime(CLOCK_REALTIME,&start);
   USING(b->M); 
