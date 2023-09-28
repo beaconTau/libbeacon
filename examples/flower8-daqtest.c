@@ -19,9 +19,13 @@ int main (int nargs, char ** args)
 {
 
   int force = 0;
-  if (nargs > 1 && atoi(args[1])) force =1; 
-  flower8_dev_t * M = flower8_open(devM, spi_en[0], gpio_int[0], 0); 
-  flower8_dev_t * S = flower8_open(devS, spi_en[1], gpio_int[1], 0); 
+  int rf = 1; 
+  if (nargs > 1 ) force =atoi(args[1]); 
+  if (nargs > 2) rf = atoi(args[2]);  
+  uint32_t flags = 0; 
+  flags |=FLOWER8_ENABLE_LOCKING; 
+  flower8_dev_t * M = flower8_open(devM, spi_en[0], gpio_int[0], flags); 
+  flower8_dev_t * S = flower8_open(devS, spi_en[1], gpio_int[1], flags); 
 //  flower8_equalize(M,1,0,FLOWER8_EQUALIZE_VERBOSE); 
 //  flower8_equalize(S,1,0,FLOWER8_EQUALIZE_VERBOSE); 
   uint8_t gains[8] = { 
@@ -34,7 +38,7 @@ int main (int nargs, char ** args)
   flower8_set_gains(S,gains);
  
   flower8_bouquet_t * b = flower8_bouquet_prepare(M,S); 
-  flower8_trigger_enables_t t_enables = {.enable_coinc = 1}; 
+  flower8_trigger_enables_t t_enables = {.enable_coinc = !!rf}; 
   flower8_set_trigger_enables(b,t_enables); 
   flower8_trigger_config_t tcfg = {.vpp_mode = 0, .num_coinc = 0, .window = 10 }; 
   flower8_configure_trigger(b, tcfg); 
@@ -48,7 +52,7 @@ int main (int nargs, char ** args)
 
   FILE * hdf = fopen("header.dat", "w"); 
   FILE * evf = fopen("event.dat", "w"); 
-  FILE * stf = fopen("dtatus.dat", "w"); 
+  FILE * stf = fopen("status.dat", "w"); 
 
   beacon_fill_status(b,&st); 
   beacon_status_print(stdout, &st); 

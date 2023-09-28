@@ -78,8 +78,8 @@ typedef enum
   HMCAD_ADR_CGAIN_CFG = 0x33 
 } e_hmcad_reg; 
 
-#define USING(d) if (d->enable_locking) pthread_mutex_lock(&d->lock);
-#define DONE(d)  if (d->enable_locking) pthread_mutex_unlock(&d->lock);
+#define USING(d) if (d->enable_locking)  { pthread_mutex_lock(&d->lock);}
+#define DONE(d)  if (d->enable_locking) {pthread_mutex_unlock(&d->lock);}
 
 
 struct flower8_dev
@@ -228,6 +228,15 @@ static int write_word(flower8_dev_t *dev, const flower8_word_t * word)
   DONE(dev); 
   return ret; 
 }
+
+static int write_word_unlocked(flower8_dev_t *dev, const flower8_word_t * word) 
+{
+
+  if (!dev) return -1; 
+  int ret =  ((int)sizeof(*word)) != write(dev->spi_fd, word, sizeof(*word)); 
+  return ret; 
+}
+
 
 
 flower8_bouquet_t * flower8_bouquet_prepare(flower8_dev_t * M, flower8_dev_t * S)
@@ -753,7 +762,14 @@ int flower8_buffer_clear(flower8_bouquet_t * b)
 {
   if (b->S)  
   {
-    return write_word(b->S, &buffer_clear) || write_word(b->M, &buffer_clear);
+    USING(b->S); 
+    USING(b->M); 
+    int ret = 0; 
+    ret+= write_word_unlocked(b->S, &buffer_clear); 
+    ret+= write_word_unlocked(b->M, &buffer_clear);
+    DONE(b->S); 
+    DONE(b->M); 
+    return ret; 
   }
   else return write_word(b->M, &buffer_clear); 
 }
@@ -1204,8 +1220,8 @@ int flower8_fill_metadata(flower8_bouquet_t *b,flower8_event_metadata_t* meta)
 {
 
   static uint8_t regs[5] = { FLWR8_REG_EVT_COUNTER, FLWR8_REG_TRG_COUNTER, FLWR8_REG_TRG_TIMELO, FLWR8_REG_TRG_TIMEHI, FLWR8_REG_TRG_INFO } ; 
-  flower8_word_t wM[5]; 
-  flower8_word_t wS[5]; 
+  flower8_word_t wM[5] = {0}; 
+  flower8_word_t wS[5] = {0}; 
   flower8_read_registers(b->M, 5, regs, wM);
   if (b->S)
   {
@@ -1216,7 +1232,7 @@ int flower8_fill_metadata(flower8_bouquet_t *b,flower8_event_metadata_t* meta)
     }
     if (wS[2].word != wM[2].word || wS[3].word != wM[3].word )
     {
-      fprintf(stderr, "trigtime mismatch! [ 0x%x,0x%x], [0x%x, 0x%x]\n", be32toh(wM[2].word), be32toh(wM[3].word), be32toh(wS[2].word), be32toh(wS[3].word));
+      fprintf(stderr, "trigtime mismatch! [ 0x%x,0x%x], [0x%x, 0x%x] diff=%d\n", be32toh(wM[2].word), be32toh(wM[3].word), be32toh(wS[2].word), be32toh(wS[3].word), be32toh(wM[3].word) - be32toh(wS[3].word));
     }
  
   }
