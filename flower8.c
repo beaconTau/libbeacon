@@ -389,6 +389,7 @@ int flower8_read_registers(flower8_dev_t*dev, int nreg,  const uint8_t *  addr, 
     xfer[2*ireg].len = 4; 
     xfer[2*ireg].rx_buf=0; 
     xfer[2*ireg].cs_change=1; 
+    xfer[2*ireg].delay_usecs=50; 
     xfer[2*ireg+1].tx_buf = 0; 
     xfer[2*ireg+1].rx_buf = (uintptr_t) results[i].bytes; 
     xfer[2*ireg+1].len = 4; 
@@ -1018,7 +1019,7 @@ int flower8_set_trigger_enables(flower8_bouquet_t *b, flower8_trigger_enables_t 
   //not sure if extin should be 1 but... let's just do it? 
   flower8_word_t tin = {.bytes = {FLWR8_REG_TRIG_ENABLES,0, enables.enable_coinc, enables.enable_pps }}; 
   flower8_word_t tout = {.bytes={FLWR8_REG_SMATRIG,0,enables.enable_pps,enables.enable_coinc}};
-  return write_word(b->M,&tin) || write_word(b->M,&tout); 
+  return write_word(b->M,&tout) || write_word(b->M,&tin); 
 }
 
 int flower8_get_trigger_enables(flower8_bouquet_t *b, flower8_trigger_enables_t *enables)
@@ -1225,7 +1226,7 @@ int flower8_bouquet_reset(flower8_bouquet_t * b)
   //discard a force trigger? 
 
 //  flower8_force_trigger(b); 
-//  flower8_buffer_clear(b); 
+  flower8_buffer_clear(b); 
 
   return 0; 
 }
