@@ -15,9 +15,11 @@ int gpio_int[2]  = {44,89};
 
 
 
-int main ()
+int main (int nargs, char ** args)
 {
 
+  int force = 0;
+  if (nargs > 1 && atoi(args[1])) force =1; 
   flower8_dev_t * M = flower8_open(devM, spi_en[0], gpio_int[0], 0); 
   flower8_dev_t * S = flower8_open(devS, spi_en[1], gpio_int[1], 0); 
 //  flower8_equalize(M,1,0,FLOWER8_EQUALIZE_VERBOSE); 
@@ -54,8 +56,11 @@ int main ()
   {
     while (beacon_wait_for_and_fill_event(b,&hd,&ev, 100))
     {
-//      printf("Sending force trigger\n"); 
-//      flower8_force_trigger(b); 
+      if (force)
+      {
+        printf("Sending force trigger\n"); 
+        flower8_force_trigger(b); 
+      }
     }
     beacon_header_write(hdf, &hd);
     beacon_event_write(evf, &ev);
