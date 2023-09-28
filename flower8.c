@@ -65,6 +65,7 @@ typedef enum
   FLWR8_REG_COINCTRIG_SETUP = 0x5f,
   FLWR8_REG_SYSTRIG = 0x60,
   FLWR8_REG_SMATRIG = 0x61,
+  FLWR8_REG_TRIG_MASK = 0x62, 
   FLWR8_REG_SYNC = 0x63,
   FLWR8_REG_SET_READ_REG = 0x6d,
   FLWR8_REG_RESET_COUNTERS=0x7e,
@@ -176,7 +177,7 @@ struct flower8_bouquet
   flower8_trigger_config_t trig_cfg; 
   uint8_t trig_thresh[8]; 
   uint8_t servo_thresh[8]; 
-  uint16_t read_mask; 
+  uint16_t trigger_mask; 
   uint16_t buflen; 
   uint64_t event_number_offset; 
 }; 
@@ -283,7 +284,9 @@ flower8_bouquet_t * flower8_bouquet_prepare(flower8_dev_t * M, flower8_dev_t * S
   // reset counters
   flower8_bouquet_reset(b); 
 
-  b->read_mask = 0xffff; 
+  flower8_word_t word_mask;  
+  flower8_read_register(b->M, FLWR8_REG_TRIG_MASK, &word_mask); 
+  b->trigger_mask = word_mask.bytes[3]; 
   b->buflen = 512; 
   return b; 
 
@@ -1412,6 +1415,18 @@ int flower8_bouquet_reset(flower8_bouquet_t * b)
   flower8_buffer_clear(b); 
 
   return 0; 
+}
+
+
+int flower8_set_trigger_mask(flower8_bouquet_t *b, uint8_t trig_mask) 
+{
+  flower8_word_t mask_word = {.bytes={FLWR8_REG_TRIG_MASK,0,0,trig_mask}}; 
+  if (!write_word(b->M,&mask_word))
+  {
+    b->trigger_mask = trig_mask; 
+    return 0; 
+  }
+  return -1; 
 }
 
 int flower8_set_pretrigger(flower8_bouquet_t *b, uint8_t pretrig) 

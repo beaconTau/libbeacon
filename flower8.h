@@ -198,6 +198,8 @@ typedef struct  flower8_trigger_enables
 int flower8_set_trigger_enables(flower8_bouquet_t * dev, flower8_trigger_enables_t enables); 
 int flower8_get_trigger_enables(flower8_bouquet_t * dev, flower8_trigger_enables_t *enables); 
 
+int flower8_set_trigger_mask(flower8_bouquet_t * dev, uint8_t mask); 
+
 /**Set the delayed PPS delay. The delay is in multiples of 100 ns*/
 int flower8_set_delayed_pps_delay(flower8_dev_t * dev, uint32_t delay); 
 int flower8_get_delayed_pps_delay(flower8_dev_t * dev, uint32_t  *delay); 
