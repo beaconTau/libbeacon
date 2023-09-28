@@ -16,7 +16,8 @@
 #include <time.h>
 #include <math.h>
 
-#define TURTLE
+//#define SAFE
+#define GOLDILOCKS
 
 typedef enum
 {
@@ -87,6 +88,8 @@ struct flower8_dev
   int interrupt_fd; 
   int enable_locking; 
   pthread_mutex_t lock; //lock for spi bus 
+  pthread_t M_acq_thread;
+  pthread_t S_acq;
   int flags; 
   struct pollfd interrupt_fdset; 
   union
@@ -115,9 +118,15 @@ struct flower8_dev
   } fwdate;
 
 
+#ifdef FOOLISH
   uint32_t readout_tx_scratch[1024]; 
   uint32_t readout_rx_scratch[1024]; 
   int8_t readout_rx_dest[1024]; 
+#endif
+#ifdef GOLDILOCKS
+  int32_t readout_rx_scratch[1024]; 
+  int8_t readout_rx_dest[1024]; 
+#endif
 };
 
 
@@ -769,19 +778,22 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
   int nioctl = 0; 
   int nxfers = 0; 
   clock_gettime(CLOCK_REALTIME,&start);
-
 #endif
-  static flower8_word_t select_chip[2]  =
-  { {.bytes={FLWR8_REG_CHANNEL, 0,0,1}}
-  , {.bytes={FLWR8_REG_CHANNEL, 0,0,2}} };
 
+#define NADDR 1024
+
+
+#ifndef GOLDILOCKS
   static flower8_word_t select_data[2]  =
   { {.bytes={FLWR8_REG_DATA_CHUNK0, 0,0,0}}
   , {.bytes={FLWR8_REG_DATA_CHUNK1, 0,0,0}}
   };
 
-#define NADDR 1024
-#define SLICE_SIZE 32
+  static flower8_word_t select_chip[2]  =
+  { {.bytes={FLWR8_REG_CHANNEL, 0,0,1}}
+  , {.bytes={FLWR8_REG_CHANNEL, 0,0,2}} };
+
+
 
   static flower8_word_t select_addr[NADDR] = {0}; 
 
@@ -793,11 +805,35 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
         select_addr[i].bytes[3] =i;
       }
   }
+#else
+  static flower8_word_t select_chunk1[2]  = {{0}, {.bytes={FLWR8_REG_DATA_CHUNK1, 0,0,0}}};
+  static flower8_word_t select_addr[NADDR][3] = {0}; 
+  static flower8_word_t select_chip[2][3]  =
+  { 
+    { {.bytes={FLWR8_REG_CHANNEL, 0,0,1}}, {.bytes={FLWR8_REG_RAM_ADDR,0,0,0}}, {.bytes={FLWR8_REG_DATA_CHUNK0,0,0,0}}},
+    { {.bytes={FLWR8_REG_CHANNEL, 0,0,2}}, {.bytes={FLWR8_REG_RAM_ADDR,0,0,0}}, {.bytes={FLWR8_REG_DATA_CHUNK0,0,0,0}}}
+  };
+
+
+
+
+  if (!select_addr[0][1].bytes[0])
+  {
+      for (int i = 0; i < NADDR; i++) 
+      {
+        select_addr[i][1].bytes[0] =FLWR8_REG_RAM_ADDR;
+        select_addr[i][1].bytes[3] =i;
+        select_addr[i][2].bytes[0] =FLWR8_REG_DATA_CHUNK0;
+      }
+  }
+#endif
 
   if (nsamps > NADDR * 2) nsamps = NADDR * 2; 
 
   int ret = 0; 
-#ifdef TURTLE
+  ///////////////////////////////////////////////////
+#ifdef SAFE
+#define SLICE_SIZE 32
   struct spi_ioc_transfer xfer[10*SLICE_SIZE+1] = {0}; 
   for (int ichip = 0; ichip < 2; ichip++) 
   {
@@ -886,7 +922,79 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
   }
 
   //method with scratch buffer
-#else
+#endif//safe
+
+  ///////////////////////////////////////////////////
+#ifdef GOLDILOCKS
+  int channel_i[8] = {0}; 
+#define SLICE_SIZE 64 
+  struct spi_ioc_transfer xfer[4*SLICE_SIZE+1] = {0}; 
+  for (int ichip = 0; ichip < 2; ichip++) 
+  {
+    int isamp = 0; 
+    int rx_i = 0;
+    int rx_dest = 2*ichip; 
+    while (isamp < nsamps) 
+    {
+      int xfer_counter = 0; 
+#define XFER(tx,rx,length) \
+        xfer[xfer_counter].tx_buf = (uintptr_t) (tx ); \
+        xfer[xfer_counter].rx_buf = (uintptr_t) ( (rx) ? dev->readout_rx_dest + rx_i: 0) ; \
+        xfer[xfer_counter].len =  length ; \
+        if (rx) \
+        {\
+          dev->readout_rx_dest[rx_i++] = rx_dest; \
+          for (int iii =0; iii < length/4-1; iii++) dev->readout_rx_dest[rx_i++] = -1; \
+          rx_dest = 2 * ichip + (rx_dest+1)%2; \
+        }  \
+        xfer[xfer_counter].cs_change =1; \
+        xfer[xfer_counter++].delay_usecs=0;
+
+     for (int islice = 0; islice < SLICE_SIZE; islice++) 
+     {
+       //if this is the first iteration, we start with a select_chip, otherwise it's a readout
+       XFER( islice == 0 ? select_chip[ichip][0].bytes : select_addr[isamp/2][0].bytes,
+             islice > 0, 12); 
+       XFER( select_chunk1, 1, 8); 
+       XFER ( select_addr[isamp/2+1][0].bytes, 1, 12); 
+       XFER(select_chunk1,1,8);
+       isamp+= 4; 
+       if (isamp >= nsamps) break; 
+     }
+
+     //we have one more read, actually! 
+     XFER(0,1,4); 
+#ifdef BENCHMARK
+    	clock_gettime(CLOCK_REALTIME, &ioctl_start);
+#endif
+      USING(dev); 
+      spi_msg(dev->spi_fd, xfer_counter, xfer); 
+      DONE(dev); 
+#ifdef BENCHMARK
+      clock_gettime(CLOCK_REALTIME, &ioctl_stop);
+      ioctl_time += ioctl_stop.tv_sec - ioctl_start.tv_sec + 1e-9 * (ioctl_stop.tv_nsec - ioctl_start.tv_nsec);
+      nioctl++; 
+      nxfers += xfer_counter;
+#endif
+      for (int i = 0; i < rx_i; i++) 
+      {
+        if (dev->readout_rx_dest[i] >=0)
+        {
+          int chpair = dev->readout_rx_dest[i]; 
+          flower8_word_t w = {.word = dev->readout_rx_scratch[i]}; 
+          dest[2*chpair][channel_i[2*chpair]++] = w.bytes[0]; 
+          dest[2*chpair][channel_i[2*chpair]++] = w.bytes[1]; 
+          dest[2*chpair+1][channel_i[2*chpair+1]++] = w.bytes[2]; 
+          dest[2*chpair+1][channel_i[2*chpair+1]++] = w.bytes[3]; 
+        }
+      }
+      rx_i = 0;
+ 
+    }
+  }
+#endif
+  ///////////////////////////////////////////////////
+#ifdef FOOLISH
   int scratch_i = 0; 
   int channel_i[8] = {0}; 
 
