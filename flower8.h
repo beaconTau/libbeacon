@@ -77,6 +77,7 @@ typedef struct flower8_event_metadata
   uint16_t buflen; 
   uint8_t trig_type : 4; 
   uint8_t pps : 1;
+  uint8_t trig_channels; 
 } flower8_event_metadata_t; 
 
 

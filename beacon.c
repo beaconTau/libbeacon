@@ -929,28 +929,29 @@ int beacon_header_print(FILE *f, const beacon_header_t *hd)
   t = hd->approx_trigger_time; 
   tim = gmtime((time_t*) &t); 
   strftime(timstr,sizeof(timstr), "%Y-%m-%d %H:%M:%S", tim);  
-  fprintf(f, "\ttrig time (est.): %s.%09d UTC\n",timstr, hd->approx_trigger_time_nsecs); 
-  fprintf(f, "\ttrig beams: %x\n", hd->triggered_beams); 
-  fprintf(f, "\tenabld beams: %x\n", hd->beam_mask); 
-  fprintf(f, "\ttriggered beam power: %u\n", hd->beam_power) ; 
-  fprintf(f,"\tprev sec deadtime: ");
-  for (i = 0; i < BN_MAX_BOARDS; i++)
-  {
-    if (hd->board_id[i]) 
-      fprintf(f," %u", hd->deadtime[i]); 
-  }
+//  fprintf(f, "\ttrig time (est.): %s.%09d UTC\n",timstr, hd->approx_trigger_time_nsecs); 
+ // fprintf(f, "\ttrig beams: %x\n", hd->triggered_beams); 
+//  fprintf(f, "\tenabld beams: %x\n", hd->beam_mask); 
+//  fprintf(f, "\ttriggered beam power: %u\n", hd->beam_power) ; 
+//  fprintf(f,"\tprev sec deadtime: ");
+//  for (i = 0; i < BN_MAX_BOARDS; i++)
+//  {
+//    if (hd->board_id[i]) 
+//      fprintf(f," %u", hd->deadtime[i]); 
+//  }
 
-  fprintf(f,"\n\ttrig_channel_mask: %x\n", hd->channel_mask); 
-  fprintf(f,"\n\tdynamic_mask: %x\n", hd->dynamic_beam_mask); 
-  fprintf(f,"\tchannel_read_mask: \n"); 
-  for (i = 0; i < BN_MAX_BOARDS; i++)
-  {
-    if (hd->board_id[i]) 
-      fprintf(f," %x", hd->channel_read_mask[i]); 
-  }
+  fprintf(f,"\n\tchannel_mask: %x", hd->channel_mask); 
+  fprintf(f,"\n\tchannel_trig_mask: %x", hd->coinc_trigger_mask); 
+//  fprintf(f,"\n\tdynamic_mask: %x\n", hd->dynamic_beam_mask); 
+//  fprintf(f,"\tchannel_read_mask: \n"); 
+ // for (i = 0; i < BN_MAX_BOARDS; i++)
+ // {
+  //  if (hd->board_id[i]) 
+   //   fprintf(f," %x", hd->channel_read_mask[i]); 
+ // }
 
 
-  fprintf(f,"\n\tcalpulser: %s\n", hd->calpulser ? "yes" : "no"); 
+//  fprintf(f,"\n\tcalpulser: %s\n", hd->calpulser ? "yes" : "no"); 
   fprintf(f,"\tgate?: %s\n", hd->gate_flag & 1 ? "yes" : "no"); 
   
 
