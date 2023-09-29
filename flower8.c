@@ -946,13 +946,13 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
           xfer[xfer_counter].rx_buf = 0; 
           XFER(0)
           xfer[xfer_counter].tx_buf =0;
-          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip][isamp]; 
+          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip+1][isamp]; 
           XFER(0)
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[1].bytes;
           xfer[xfer_counter].rx_buf = 0; 
           XFER(0)
           xfer[xfer_counter].tx_buf =0;
-          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip + 2][isamp]; 
+          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip + 3][isamp]; 
           XFER(0)
           xfer[xfer_counter].tx_buf = (uintptr_t) select_addr[isamp/2+1].bytes; 
           xfer[xfer_counter].rx_buf = 0;
@@ -962,13 +962,13 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
           xfer[xfer_counter].delay_usecs = 100; 
           XFER(0)
           xfer[xfer_counter].tx_buf =0;
-          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip+ 1][isamp]; 
+          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip][isamp]; 
           XFER(0)
           xfer[xfer_counter].tx_buf = (uintptr_t) select_data[1].bytes;
           xfer[xfer_counter].rx_buf = 0; 
           XFER(0)
           xfer[xfer_counter].tx_buf =0;
-          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip+ 3][isamp]; 
+          xfer[xfer_counter].rx_buf = (uintptr_t) &dest[4*ichip+2][isamp]; 
           XFER(0)
  
           isamp+=4; 
@@ -996,9 +996,9 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
        for(int chunk = 0; chunk < 2; chunk++) 
        {
        //TODO: rewrite using ARM intrinsics 
-          memcpy(tmp, &dest[4*ichip+2*chunk+1][isamp], 2); 
-          memcpy(&dest[4*ichip+2*chunk+1][isamp], &dest[4*ichip+2*chunk][isamp+2],2);
-          memcpy( &dest[4*ichip+2*chunk][isamp+2], tmp, 2);
+          memcpy(tmp, &dest[4*ichip+2*chunk][isamp+2], 2); 
+          memcpy(&dest[4*ichip+2*chunk][isamp+2], &dest[4*ichip+2*chunk+1][isamp],2);
+          memcpy( &dest[4*ichip+2*chunk+1][isamp], tmp, 2);
 
        }
      }
