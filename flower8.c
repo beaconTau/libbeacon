@@ -996,9 +996,9 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
        for(int chunk = 0; chunk < 2; chunk++) 
        {
        //TODO: rewrite using ARM intrinsics 
-          memcpy(tmp, &dest[4*ichip+2*chunk][isamp+2], 2); 
-          memcpy(&dest[4*ichip+2*chunk][isamp+2], &dest[4*ichip+2*chunk+1][isamp],2);
-          memcpy( &dest[4*ichip+2*chunk+1][isamp], tmp, 2);
+          memcpy(tmp, &dest[4*ichip+2*chunk+1][isamp+2], 2); 
+          memcpy(&dest[4*ichip+2*chunk+1][isamp+2], &dest[4*ichip+2*chunk][isamp],2);
+          memcpy( &dest[4*ichip+2*chunk][isamp], tmp, 2);
 
        }
      }
