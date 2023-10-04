@@ -40,6 +40,13 @@ typedef struct flower8_scaler_group
 } flower8_scaler_group; 
 
 
+typedef enum 
+{
+  FLOWER8_SCAL_100mHz =1, 
+  FLOWER8_SCAL_100Hz =2
+} flower8_variable_scaler_type_t; 
+
+
 typedef struct flower8_daqstatus
 {
   flower8_scaler_group s_1Hz; 
@@ -51,7 +58,7 @@ typedef struct flower8_daqstatus
   uint8_t trig_thresholds[FLOWER8_MAX_TRIG_CHAN]; 
   uint8_t servo_thresholds[FLOWER8_MAX_TRIG_CHAN]; 
   double when;
-  uint8_t scaler_type; // type of scalers
+  flower8_variable_scaler_type_t scaler_speed; // type of scalers
 } flower8_daqstatus_t; 
 
 typedef enum flower8_mode
@@ -119,6 +126,7 @@ int flower8_configure_trigger(flower8_bouquet_t * b, flower8_trigger_config_t cf
 int flower8_set_thresholds(flower8_bouquet_t *b, const uint8_t * trigger_thresholds, const uint8_t * servo_thresholds, uint8_t mask); 
 
 int flower8_fill_daqstatus(flower8_bouquet_t *dev, flower8_daqstatus_t * st); 
+int flower8_set_variable_scaler_speed(flower8_bouquet_t * b, flower8_variable_scaler_type_t scal); 
 
 int flower8_fill_metadata(flower8_bouquet_t *b,flower8_event_metadata_t* meta); 
 int flower8_read_waveforms(flower8_dev_t * dev, int nsamps, uint8_t ** dest);

@@ -862,7 +862,7 @@ int beacon_status_print(FILE *f, const beacon_status_t *st)
   {
     fprintf(f,"latched pps count: %"PRIu64", scaler_update_counter: %u  \n", st->latched_pps_count, st->scaler_update_counter); 
     
-      fprintf(f,"CH  | trgthr | srvthr | srv1Hz | srvGate | srv100%sHz | trg1Hz | trgGate | trg100%sHz \n", st->scaler_type == 1 ? " " : "m" , st->scaler_type == 1 ?  "" : "m"); 
+      fprintf(f,"CH  | trgthr | srvthr | srv1Hz | srvGate | srv100%sHz | trg1Hz | trgGate | trg100%sHz \n", st->scaler_type == 1 ? "m" : "" , st->scaler_type == 1 ?  "m" : ""); 
       fprintf(f,"--------------------------------------------------------------------------------------\n"); 
     for (int i = 0; i < 8; i++) 
     {

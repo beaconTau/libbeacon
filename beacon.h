@@ -167,7 +167,7 @@ typedef struct beacon_status
   uint8_t board_id;                                              //!< The board number assigned at startup. 
   uint32_t dynamic_beam_mask;                                    //!< The dynamic beam mask 
   uint8_t  veto_status;                                          //!< The veto status
-  uint8_t  scaler_type;                                       //! legacy = 0, 1 if using coincidence trigger with 100 Hz scaler, 2 if using coincidence with 100 mHz scaler
+  uint8_t  scaler_type;                                       //! legacy = 0, 1 if using coincidence trigger with 100 mHz scaler, 2 if using coincidence with 100 Hz scaler
   uint64_t latched_pps_count; 
   uint32_t scaler_update_counter; 
   uint16_t global_servo_scalers[BN_NUM_SCALERS];   // for coinc trigger

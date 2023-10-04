@@ -42,6 +42,7 @@ typedef enum
   FLWR8_REG_CALPULSE=0x2a, 
   FLWR8_REG_SCAL_TIME_LOW = 0x2c, 
   FLWR8_REG_SCAL_TIME_HIGH = 0x2d, 
+  FLWR8_REG_SCAL_SPEED_SELECT = 0x2f, 
   FLWR8_REG_PD_REG=0x3a,
   FLWR8_REG_CFG_REG0 = 0x3b, 
   FLWR8_REG_CFG_REG1 = 0x3c, 
@@ -181,6 +182,7 @@ struct flower8_bouquet
   uint16_t trigger_mask; 
   uint16_t buflen; 
   uint64_t event_number_offset; 
+  flower8_variable_scaler_type_t scal_speed; 
 }; 
 
 
@@ -264,8 +266,14 @@ flower8_bouquet_t * flower8_bouquet_prepare(flower8_dev_t * M, flower8_dev_t * S
     b->servo_thresh[i] = thresh_word.bytes[2]; 
   }
 
+  //read in the scaler speed
+
+  flower8_word_t scal_speed_word = {0}; 
+  flower8_read_register(b->M, FLWR8_REG_SCAL_SPEED_SELECT, &scal_speed_word); 
+  b->scal_speed = scal_speed_word.bytes[3] == 0 ? FLOWER8_SCAL_100mHz : FLOWER8_SCAL_100Hz; 
+
   //read in the trigger configuration 
-  flower8_word_t cfg_word; 
+  flower8_word_t cfg_word = {0}; 
   flower8_read_register(b->M,FLWR8_REG_COINCTRIG_SETUP, &cfg_word); 
   b->trig_cfg.vpp_mode = cfg_word.bytes[1]; 
   b->trig_cfg.window = cfg_word.bytes[2];  
@@ -653,7 +661,7 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
 //  printf("status ioctl: %d\n", ret); 
 
   ds->when = (start.tv_sec*0.5 + end.tv_sec*0.5) + 1e-9*(start.tv_nsec*0.5 + end.tv_nsec*0.5); 
-  ds->scaler_type = 1; 
+  ds->scaler_speed =b->scal_speed;
 
   if (ret > 0) 
   {
@@ -1451,6 +1459,23 @@ void flower8_set_buffer_length(flower8_bouquet_t * b, uint16_t len)
   b->buflen = len; 
 }
 
+
+int flower8_set_variable_scaler_speed(flower8_bouquet_t * b, flower8_variable_scaler_type_t scal)
+{
+  if (!b || !b->M) return -1; 
+  if (b->scal_speed == scal) return 0; 
+  
+  flower8_word_t scal_spd = {.bytes = { FLWR8_REG_SCAL_SPEED_SELECT, 0, 0, scal == FLOWER8_SCAL_100mHz ? 0 : 1}}; 
+
+  if (write_word(b->M,&scal_spd))
+  {
+    b->scal_speed = scal; 
+    return 0; 
+  }
+
+  return -1; 
+}
+
 #ifdef _BEACON_
 int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, beacon_event_t * ev, int timeout) 
 {
@@ -1577,9 +1602,9 @@ int beacon_fill_status(flower8_bouquet_t * b, beacon_status_t *s)
   s->latched_pps_time = ds.ncycles; 
   s->board_id = 1; 
   s->deadtime = -1; 
-  s->scaler_type = ds.scaler_type;
   s->latched_pps_count= ds.cycle_counter; 
   s->scaler_update_counter = ds.scaler_counter_1Hz; 
+  s->scaler_type = b->scal_speed;
 
   return 0; 
 }
