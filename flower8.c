@@ -1260,7 +1260,7 @@ int flower8_fill_metadata(flower8_bouquet_t *b,flower8_event_metadata_t* meta)
     big_part = be32toh(wS[2].word) & 0xffffff; 
     meta->timestamp[1] += (big_part << 24); 
 
-    if ( llabs(meta->timestamp[1] - meta->timestamp[0]) > 10)
+    if ( llabs(  ((int64_t) meta->timestamp[1]) - ((int64_t) ( meta->timestamp[0]))) > 10)
     {
       fprintf(stderr, "trigtime mismatch! [ 0x%x,0x%x], [0x%x, 0x%x] diff=%d\n", be32toh(wM[2].word), be32toh(wM[3].word), be32toh(wS[2].word), be32toh(wS[3].word), be32toh(wM[3].word) - be32toh(wS[3].word));
     }
