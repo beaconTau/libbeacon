@@ -774,6 +774,8 @@ int flower8_force_trigger(flower8_bouquet_t * b)
   return ret; 
 }
 
+#define SYNC_BUFCLEAR
+
 static flower8_word_t buffer_clear = {.bytes={FLWR8_REG_BUF_CLEAR,0,0,1}}; 
 int flower8_buffer_clear(flower8_bouquet_t * b) 
 {
@@ -782,8 +784,16 @@ int flower8_buffer_clear(flower8_bouquet_t * b)
     USING(b->S); 
     USING(b->M); 
     int ret = 0; 
+#ifdef SYNC_BUFCLEAR
+    ret += write_word_unlocked(b->S, &sync_S);
+    ret += write_word_unlocked(b->M, &sync_M);
+#endif
     ret+= write_word_unlocked(b->S, &buffer_clear); 
     ret+= write_word_unlocked(b->M, &buffer_clear);
+#ifdef SYNC_BUFCLEAR
+    ret+= write_word_unlocked(b->M, &sync_N); 
+    ret+= write_word_unlocked(b->S, &sync_N); 
+#endif
     DONE(b->S); 
     DONE(b->M); 
     return ret; 
@@ -1221,7 +1231,9 @@ int flower8_set_trigger_enables(flower8_bouquet_t *b, flower8_trigger_enables_t 
   //not sure if extin should be 1 but... let's just do it? 
   flower8_word_t tin = {.bytes = {FLWR8_REG_TRIG_ENABLES,0, enables.enable_coinc, enables.enable_pps }}; 
   flower8_word_t tout = {.bytes={FLWR8_REG_SMATRIG,0,enables.enable_pps,enables.enable_coinc}};
-  return write_word(b->M,&tout) || write_word(b->M,&tin); 
+  flower8_word_t tinS = {.bytes={FLWR8_REG_SMATRIG,1,enables.enable_pps,0}};
+
+  return write_word(b->M,&tout) || write_word(b->M,&tin) || write_word(b->S,&tinS); 
 }
 
 int flower8_get_trigger_enables(flower8_bouquet_t *b, flower8_trigger_enables_t *enables)
@@ -1342,20 +1354,25 @@ int flower8_get_fwversion(flower8_dev_t *dev, uint8_t *major, uint8_t *minor,
 
 }
 
-int flower8_set_delayed_pps_delay(flower8_dev_t * dev, uint32_t delay) 
+int flower8_set_delayed_pps_delay(flower8_bouquet_t * dev, uint32_t delay) 
 {
-  if (!dev || (dev->fwver_int < 8)) return -1; 
+  if (!dev || !dev->M) return -1; 
 
   flower8_word_t word = {.bytes = {FLWR8_REG_PPS_DELAY, (delay >> 16) & 0xff,(delay >> 8) & 0xff,  delay & 0xff, }}; 
-  return write_word(dev,&word); 
+  int ret = write_word(dev->S,&word); 
+  if (dev->S)
+  {
+     ret += write_word(dev->M,&word); 
+  }
+  return ret; 
 }
 
-int flower8_get_delayed_pps_delay(flower8_dev_t * dev, uint32_t *delay) 
+int flower8_get_delayed_pps_delay(flower8_bouquet_t * dev, uint32_t *delay) 
 {
-  if (!dev || (dev->fwver_int < 8)) return -1; 
+  if (!dev || !dev->M) return -1; 
   flower8_word_t word; 
-  int ret = flower8_read_register(dev, FLWR8_REG_PPS_DELAY, &word); 
-  if (!ret)  *delay = word.bytes[3] | (word.bytes[2] <<8) | (word.bytes[1] << 16); 
+  int ret = flower8_read_register(dev->M, FLWR8_REG_PPS_DELAY, &word); 
+  if (!ret && delay)  *delay = word.bytes[3] | (word.bytes[2] <<8) | (word.bytes[1] << 16); 
   return ret; 
 
 }
