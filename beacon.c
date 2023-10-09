@@ -911,7 +911,8 @@ int beacon_header_print(FILE *f, const beacon_header_t *hd)
   {
     fprintf(f, " %d", hd->board_id[i]); 
   }
-  fprintf(f , " sync_problem: %x\n", hd->sync_problem); 
+//  fprintf(f , " sync_problem: %x\n", hd->sync_problem); 
+  fprintf(f,"  ppsnum: %u\n", hd->pps_counter); 
   fprintf(f, "\tbuf len: %u ; pretrig: %u\n", hd->buffer_length, hd->pretrigger_samples); 
   fprintf(f,"\tbuf num: %u, buf_mask: %x\n", hd->buffer_number, hd->buffer_mask); 
   for (i = 0; i < BN_MAX_BOARDS; i++) 
