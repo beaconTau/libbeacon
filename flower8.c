@@ -899,9 +899,9 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
       }
   }
 #else
-  static flower8_word_t select_chunk1[3]  = {{0}, {0}, {.bytes={FLWR8_REG_DATA_CHUNK1, 0,0,0}}};
+  static flower8_word_t select_chunk1[2]  = {{0}, {.bytes={FLWR8_REG_DATA_CHUNK1, 0,0,0}}};
   static flower8_word_t select_addr[NADDR][3] = {0}; 
-  static flower8_word_t select_chip[2][3]  =
+  flower8_word_t select_chip[2][3]  =
   { 
     { {.bytes={FLWR8_REG_CHANNEL, 0,0,1}}, {.bytes={FLWR8_REG_RAM_ADDR,0,0,0}}, {.bytes={FLWR8_REG_DATA_CHUNK0,0,0,0}}},
     { {.bytes={FLWR8_REG_CHANNEL, 0,0,2}}, {.bytes={FLWR8_REG_RAM_ADDR,0,0,0}}, {.bytes={FLWR8_REG_DATA_CHUNK0,0,0,0}}}
@@ -1027,9 +1027,9 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
   {
     int isamp = 0; 
     int rx_i = 0;
+    int rx_dest = 2*ichip; 
     while (isamp < nsamps) 
     {
-      int rx_dest = 2*ichip; 
       int xfer_counter = 0; 
 #define XFER(tx,rx,length) \
         xfer[xfer_counter].tx_buf = (uintptr_t) (tx ); \
@@ -1044,20 +1044,21 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
         xfer[xfer_counter].cs_change =1; \
         xfer[xfer_counter++].delay_usecs=0;
 
+     select_chip[ichip][1].bytes[3] = isamp/2; 
      for (int islice = 0; islice < SLICE_SIZE; islice++) 
      {
        //if this is the first iteration, we start with a select_chip, otherwise it's a readout
        XFER( islice == 0 ? select_chip[ichip][0].bytes : select_addr[isamp/2][0].bytes,
              islice > 0, 12); 
-       XFER( select_chunk1, 1, 12); 
+       XFER( select_chunk1, 1, 8); 
        XFER ( select_addr[isamp/2+1][0].bytes, 1, 12); 
-       XFER(select_chunk1,1,12);
+       XFER(select_chunk1,1,8);
        isamp+= 4; 
        if (isamp >= nsamps) break; 
      }
 
      //we have one more read, actually! 
-     XFER(0,1,12); 
+     XFER(0,1,4); 
 #ifdef BENCHMARK
     	clock_gettime(CLOCK_REALTIME, &ioctl_start);
 #endif
