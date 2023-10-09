@@ -1252,7 +1252,7 @@ int flower8_fill_metadata(flower8_bouquet_t *b,flower8_event_metadata_t* meta)
 
   meta->event_number = be32toh(wM[0].word) & 0xffffff; 
   meta->trig_number = be32toh(wM[1].word) & 0xffffff; 
-  meta->pps_count = be32toh(wM[2].word); 
+  meta->pps_count = be32toh(wM[2].word) & 0xffffff; 
   meta->timestamp[0] = be32toh(wM[3].word) & 0xffffff; 
   uint64_t big_part =  be32toh(wM[4].word) & 0xffffff;
   meta->timestamp[0] += (big_part << 24); 
