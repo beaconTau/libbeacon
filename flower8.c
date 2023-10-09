@@ -16,8 +16,8 @@
 #include <time.h>
 #include <math.h>
 
-#define SAFE
-//#define GOLDILOCKS
+//#define SAFE
+#define GOLDILOCKS
 //#define PARALLEL_READOUT
 
 typedef enum
@@ -1020,15 +1020,15 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
   ///////////////////////////////////////////////////
 #ifdef GOLDILOCKS
   int channel_i[8] = {0}; 
-#define SLICE_SIZE 64 
+#define SLICE_SIZE 32 
   struct spi_ioc_transfer xfer[4*SLICE_SIZE+1] = {0}; 
   for (int ichip = 0; ichip < 2; ichip++) 
   {
     int isamp = 0; 
     int rx_i = 0;
-    int rx_dest = 2*ichip; 
     while (isamp < nsamps) 
     {
+      int rx_dest = 2*ichip; 
       int xfer_counter = 0; 
 #define XFER(tx,rx,length) \
         xfer[xfer_counter].tx_buf = (uintptr_t) (tx ); \
