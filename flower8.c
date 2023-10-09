@@ -28,10 +28,11 @@ typedef enum
   FLWR8_REG_DATA_STATUS = 0x07, 
   FLWR8_REG_EVT_COUNTER = 0x0a, 
   FLWR8_REG_TRG_COUNTER = 0x0b, 
-  FLWR8_REG_TRG_TIMELO = 0x0c, 
-  FLWR8_REG_TRG_TIMEHI = 0x0d, 
-  FLWR8_REG_TRG_INFO = 0x0e, 
-  FLWR8_REG_TRG_CHANNELS = 0x0f, 
+  FLWR8_REG_TRG_PPS = 0x0c, 
+  FLWR8_REG_TRG_TIMELO = 0x0d, 
+  FLWR8_REG_TRG_TIMEHI = 0x0e, 
+  FLWR8_REG_TRG_INFO = 0x0f, 
+  FLWR8_REG_TRG_CHANNELS = 0x10, 
   FLWR8_REG_I2C_READ = 0x22, 
   FLWR8_REG_DATA_CHUNK0 = 0x23,
   FLWR8_REG_DATA_CHUNK1 = 0x24,
@@ -1020,7 +1021,7 @@ int flower8_read_waveforms(flower8_dev_t *dev, int nsamps, uint8_t ** dest)
   ///////////////////////////////////////////////////
 #ifdef GOLDILOCKS
   int channel_i[8] = {0}; 
-#define SLICE_SIZE 32 
+#define SLICE_SIZE 64 
   struct spi_ioc_transfer xfer[4*SLICE_SIZE+1] = {0}; 
   for (int ichip = 0; ichip < 2; ichip++) 
   {
@@ -1236,13 +1237,13 @@ int flower8_get_trigger_enables(flower8_bouquet_t *b, flower8_trigger_enables_t 
 int flower8_fill_metadata(flower8_bouquet_t *b,flower8_event_metadata_t* meta) 
 {
 
-  static uint8_t regs[6] = { FLWR8_REG_EVT_COUNTER, FLWR8_REG_TRG_COUNTER, FLWR8_REG_TRG_TIMELO, FLWR8_REG_TRG_TIMEHI, FLWR8_REG_TRG_INFO, FLWR8_REG_TRG_CHANNELS } ; 
-  flower8_word_t wM[6] = {0}; 
-  flower8_word_t wS[6] = {0}; 
-  flower8_read_registers(b->M, 5, regs, wM);
+  static uint8_t regs[7] = { FLWR8_REG_EVT_COUNTER, FLWR8_REG_TRG_COUNTER, FLWR8_REG_TRG_PPS, FLWR8_REG_TRG_TIMELO, FLWR8_REG_TRG_TIMEHI, FLWR8_REG_TRG_INFO, FLWR8_REG_TRG_CHANNELS } ; 
+  flower8_word_t wM[7] = {0}; 
+  flower8_word_t wS[7] = {0}; 
+  flower8_read_registers(b->M, 7, regs, wM);
   if (b->S)
   {
-    flower8_read_registers(b->S, 5, regs, wS);
+    flower8_read_registers(b->S, 7, regs, wS);
     if (wS[0].word != wM[0].word )
     {
       fprintf(stderr, "event# mismatch! [ 0x%x,0x%0x], [0x%0x, 0x%0x]\n", be32toh(wM[0].word), be32toh(wM[1].word), be32toh(wS[0].word), be32toh(wS[1].word));
@@ -1251,13 +1252,14 @@ int flower8_fill_metadata(flower8_bouquet_t *b,flower8_event_metadata_t* meta)
 
   meta->event_number = be32toh(wM[0].word) & 0xffffff; 
   meta->trig_number = be32toh(wM[1].word) & 0xffffff; 
+  meta->pps_count = be32toh(wM[2].word); 
   meta->timestamp[0] = be32toh(wM[3].word) & 0xffffff; 
-  uint64_t big_part =  be32toh(wM[2].word) & 0xffffff;
+  uint64_t big_part =  be32toh(wM[4].word) & 0xffffff;
   meta->timestamp[0] += (big_part << 24); 
   if (b->S)
   {
     meta->timestamp[1] = be32toh(wS[3].word) & 0xffffff; 
-    big_part = be32toh(wS[2].word) & 0xffffff; 
+    big_part = be32toh(wS[4].word) & 0xffffff; 
     meta->timestamp[1] += (big_part << 24); 
 
     if ( llabs(meta->timestamp[1] - meta->timestamp[0]) > 10)
@@ -1265,9 +1267,9 @@ int flower8_fill_metadata(flower8_bouquet_t *b,flower8_event_metadata_t* meta)
       fprintf(stderr, "trigtime mismatch! [ 0x%x,0x%x], [0x%x, 0x%x] diff=%d\n", be32toh(wM[2].word), be32toh(wM[3].word), be32toh(wS[2].word), be32toh(wS[3].word), be32toh(wM[3].word) - be32toh(wS[3].word));
     }
   }
-  meta->trig_type = wM[4].bytes[3]  &0xf; 
-  meta->pps = wM[4].bytes[2]; 
-  meta->trig_channels  = wM[5].bytes[3]; 
+  meta->trig_type = wM[5].bytes[3]  &0xf; 
+  meta->pps = wM[5].bytes[2]; 
+  meta->trig_channels  = wM[6].bytes[3]; 
 
   return 0; 
 }
@@ -1507,6 +1509,7 @@ int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, b
 
   hd->gate_flag = meta.pps; 
   hd->coinc_trigger_mask = meta.trig_channels; 
+  hd->pps_counter = meta.pps_count; 
   ev->event_number = meta.event_number + b->event_number_offset; 
   ev->buffer_length = b->buflen; 
   ev->board_id[0] = 1; 

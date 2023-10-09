@@ -80,6 +80,7 @@ typedef struct flower8_event_metadata
 {
   uint32_t event_number; 
   uint32_t trig_number; 
+  uint32_t pps_count; 
   uint64_t timestamp[2]; 
   uint16_t buflen; 
   uint8_t trig_type : 4; 
