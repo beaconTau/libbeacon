@@ -1231,7 +1231,7 @@ int flower8_set_trigger_enables(flower8_bouquet_t *b, flower8_trigger_enables_t 
   //not sure if extin should be 1 but... let's just do it? 
   flower8_word_t tin = {.bytes = {FLWR8_REG_TRIG_ENABLES,0, enables.enable_coinc, enables.enable_pps }}; 
   flower8_word_t tout = {.bytes={FLWR8_REG_SMATRIG,0,enables.enable_pps,enables.enable_coinc}};
-  flower8_word_t tinS = {.bytes={FLWR8_REG_SMATRIG,1,enables.enable_pps,0}};
+  flower8_word_t tinS = {.bytes={FLWR8_REG_TRIG_ENABLES,1,0, enables.enable_pps}};
 
   return write_word(b->M,&tout) || write_word(b->M,&tin) || write_word(b->S,&tinS); 
 }
