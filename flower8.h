@@ -21,6 +21,8 @@
 #include <stdint.h>
 
 #define FLOWER8_MAX_TRIG_CHAN 8 
+#define FLOWER8_MAX_TRIG_BEAMS 42
+
 
 typedef struct flower8_dev flower8_dev_t; 
 typedef struct flower8_bouquet flower8_bouquet_t; 
@@ -30,14 +32,23 @@ typedef struct flower8_bouquet flower8_bouquet_t;
 
 
 
-typedef struct flower8_scaler_group
+typedef struct flower8_coinc_scaler_group
 {
   uint16_t trig_coinc; 
   uint16_t trig_per_chan[FLOWER8_MAX_TRIG_CHAN]; 
   uint16_t servo_coinc; 
   uint16_t servo_per_chan[FLOWER8_MAX_TRIG_CHAN]; 
 
-} flower8_scaler_group; 
+} flower8_coinc_scaler_group; 
+
+typedef struct flower8_scaler_phased_group
+{
+  uint16_t trig_beam; 
+  uint16_t trig_per_beam[FLOWER8_MAX_TRIG_BEAMS]; 
+  uint16_t servo_beam; 
+  uint16_t servo_per_beam[FLOWER8_MAX_TRIG_BEAMS]; 
+
+} flower8_scaler_phased_group; 
 
 
 typedef enum 
@@ -49,14 +60,19 @@ typedef enum
 
 typedef struct flower8_daqstatus
 {
-  flower8_scaler_group s_1Hz; 
-  flower8_scaler_group s_1Hz_gated; 
-  flower8_scaler_group s_100mHz; //100 Hz or 100 mHz, depending on scaler_type
+  flower8_scaler_coinc_group s_1Hz; 
+  flower8_scaler_coinc_group s_1Hz_gated; 
+  flower8_scaler_coinc_group s_100mHz; //100 Hz or 100 mHz, depending on scaler_type
+  flower8_scaler_phased_group s_1Hz; 
+  flower8_scaler_phased_group s_1Hz_gated; 
+  flower8_scaler_phased_group s_100mHz; //100 Hz or 100 mHz, depending on scaler_type
   uint64_t ncycles : 48; 
   uint16_t scaler_counter_1Hz :  16; 
   uint64_t cycle_counter; 
   uint8_t trig_thresholds[FLOWER8_MAX_TRIG_CHAN]; 
   uint8_t servo_thresholds[FLOWER8_MAX_TRIG_CHAN]; 
+  uint16_t trig_thresholds[FLOWER8_MAX_TRIG_BEAMS]; 
+  uint16_t servo_thresholds[FLOWER8_MAX_TRIG_BEAMS]; 
   double when;
   flower8_variable_scaler_type_t scaler_speed; // type of scalers
 } flower8_daqstatus_t; 
@@ -67,12 +83,17 @@ typedef enum flower8_mode
   FLOWER8_MODE_S
 } flower8_mode_t; 
 
-typedef struct flower8_trigger_config
+typedef struct flower8_coinc_trigger_config
 {
   uint8_t window; 
   uint8_t num_coinc; 
   uint8_t vpp_mode; 
-}flower8_trigger_config_t; 
+}flower8_coinc_trigger_config_t; 
+
+typedef struct flower8_phased_trigger_config
+{
+  //empty for now
+}flower8_phased_trigger_config_t; 
 
 
 
@@ -86,6 +107,9 @@ typedef struct flower8_event_metadata
   uint8_t trig_type : 4; 
   uint8_t pps : 1;
   uint8_t trig_channels; 
+  uint32_t trig_beams_lower; 
+  uint32_t trig_channels_upper; 
+
 } flower8_event_metadata_t; 
 
 
@@ -200,6 +224,8 @@ typedef struct  flower8_trigger_enables
 {
   uint8_t enable_pps : 1; 
   uint8_t enable_coinc : 1; 
+  uint8_t enable_phased : 1; 
+
 } flower8_trigger_enables_t; 
 
 

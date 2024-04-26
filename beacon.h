@@ -47,7 +47,7 @@ extern "C" {
 #define BN_LEGACY_MAX_BOARDS 1  
 
 /** The number of trigger beams available  (for legacy(*/ 
-#define BN_NUM_BEAMS 24 
+#define BN_NUM_BEAMS 42
 
 
 #define BN_NUM_SCALERS 3
@@ -111,9 +111,12 @@ typedef struct beacon_header
   uint64_t trig_time[BN_MAX_BOARDS];                  //!< Board trigger time (raw units) 
   uint32_t approx_trigger_time;                       //!< Board trigger time converted to real units (approx secs), master only
   uint32_t approx_trigger_time_nsecs;                 //!< Board trigger time converted to real units (approx nnsecs), master only
-  uint32_t triggered_beams;                           //!< The beams that triggered  (all 0 in case of concidence trigger)
-  uint32_t beam_mask;                                 //!< The enabled beams(all 0 if phased array trigger not implemented yet)
-  uint32_t beam_power;                                //!< The power in the triggered beam (all 0 in case of coincidence trigger)
+  uint32_t triggered_beams;                           //!< The lower beams that triggered 0-21 (all 0 in case of concidence trigger)
+  uint32_t triggered_beams_upper;                     //!< The upper beams that triggered 22-41 (all 0 in case of concidence trigger)
+  uint32_t triggered_channels;                        //!< The channels that triggered  (all 0 in case of phased trigger)
+  uint32_t beam_mask;                                 //!< The enabled beams 0-21
+  uint32_t beam_mask_upper;                           //!< The enabled beams 22-41
+  uint32_t beam_power;                                //!< The power in the triggered beam (all 0 in case of coincidence trigger) --- likely not implemented
   uint32_t deadtime [BN_MAX_BOARDS];                  //!< ??? Will we have this available? If so, this will be a fraction. (store for slave board as well) 
   uint8_t buffer_number;                              //!< the buffer number (do we need this?) 
   uint8_t channel_mask;                               //!< The channels allowed to participate in the trigger
@@ -121,14 +124,14 @@ typedef struct beacon_header
   uint8_t gate_flag;                                  //!< gate flag  (used to be channel_overflow but that was never used) 
   uint8_t buffer_mask;                                //!< The buffer mask at time of read out (do we want this?)   
   uint8_t board_id[BN_MAX_BOARDS];                    //!< The board number assigned at startup. If board_id[1] == 0, no slave. 
-  beacon_trig_type_t trig_type;                      //!< The trigger type?
-  beacon_trigger_polarization_t trig_pol;            //!< The trigger polarization
+  beacon_trig_type_t trig_type;                       //!< The trigger type?
+  beacon_trigger_polarization_t trig_pol;             //!< The trigger polarization
   uint8_t calpulser;                                  //!< Was the calpulser on? 
   uint8_t sync_problem;                               //!< Various sync problems. TODO convert to enum 
   uint32_t pps_counter;                               //!< value of the pps timer at the time of the event
   uint32_t dynamic_beam_mask;                         //!< the automatic beam masker, if enabled
   uint32_t veto_deadtime_counter;                     //!< deadtime counter, if enabled
-  uint32_t coinc_trigger_mask;                         //!< coincident trigger mask
+  uint32_t coinc_trigger_mask;                        //!< coincident trigger mask
 } beacon_header_t; 
 
 /**beacon event body.
@@ -157,12 +160,9 @@ typedef enum beacon_scaler_type
  **/
 typedef struct beacon_status
 {
-  uint16_t global_scalers[BN_NUM_SCALERS];
-  uint16_t beam_scalers[BN_NUM_SCALERS][BN_NUM_BEAMS];    //!< The scaler for each beam (12 bits) . All 0s if coinc trigger... 
   uint32_t deadtime;                                             //!< The deadtime fraction (units tbd) 
   uint32_t readout_time;                                         //!< CPU time of readout, seconds
   uint32_t readout_time_ns;                                      //!< CPU time of readout, nanoseconds 
-  uint32_t beam_thresholds[BN_NUM_BEAMS];                       //!< The trigger thresholds  for beams
   uint64_t latched_pps_time;                                     //!< A timestamp corresponding to a pps time 
   uint8_t board_id;                                              //!< The board number assigned at startup. 
   uint32_t dynamic_beam_mask;                                    //!< The dynamic beam mask 
@@ -170,11 +170,17 @@ typedef struct beacon_status
   uint8_t  scaler_type;                                       //! legacy = 0, 1 if using coincidence trigger with 100 mHz scaler, 2 if using coincidence with 100 Hz scaler
   uint64_t latched_pps_count; 
   uint32_t scaler_update_counter; 
+
   uint16_t global_servo_scalers[BN_NUM_SCALERS];   // for coinc trigger
   uint16_t channel_trig_scalers[BN_NUM_CHAN][BN_NUM_SCALERS];   // for coinc trigger
   uint16_t channel_servo_scalers[BN_NUM_CHAN][BN_NUM_SCALERS];   // for coinc trigger
   uint8_t channel_trig_thresholds[BN_NUM_CHAN]; 
   uint8_t channel_servo_thresholds[BN_NUM_CHAN]; 
+
+  uint16_t beam_trig_scalers[BN_NUM_BEAMS][BN_NUM_SCALERS];   // for phased trigger
+  uint16_t beam_servo_scalers[BN_NUM_BEAMS][BN_NUM_SCALERS];   // for phased trigger
+  uint16_t beam_trig_thresholds[BN_NUM_BEAMS]; 
+  uint16_t beam_servo_thresholds[BN_NUM_BEAMS]; 
 } beacon_status_t; 
 
 
