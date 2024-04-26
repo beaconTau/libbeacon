@@ -108,7 +108,7 @@ typedef struct flower8_event_metadata
   uint8_t pps : 1;
   uint8_t trig_channels; 
   uint32_t trig_beams_lower; 
-  uint32_t trig_channels_upper; 
+  uint32_t trig_beams_upper; 
 
 } flower8_event_metadata_t; 
 
@@ -148,7 +148,8 @@ int flower8_bouquet_dump(FILE* f, flower8_bouquet_t * b);
 
 int flower8_configure_trigger(flower8_bouquet_t * b, flower8_trigger_config_t cfg); 
 
-int flower8_set_thresholds(flower8_bouquet_t *b, const uint8_t * trigger_thresholds, const uint8_t * servo_thresholds, uint8_t mask); 
+int flower8_set_coinc_thresholds(flower8_bouquet_t *b, const uint8_t * trigger_thresholds, const uint8_t * servo_thresholds, uint8_t mask); 
+int flower8_set_phased_thresholds(flower8_bouquet_t *b, const uint16_t * phased_trigger_thresholds, const uint16_t * phased_servo_thresholds, uint8_t mask);
 
 int flower8_fill_daqstatus(flower8_bouquet_t *dev, flower8_daqstatus_t * st); 
 int flower8_set_variable_scaler_speed(flower8_bouquet_t * b, flower8_variable_scaler_type_t scal); 
@@ -234,7 +235,8 @@ typedef struct  flower8_trigger_enables
 int flower8_set_trigger_enables(flower8_bouquet_t * dev, flower8_trigger_enables_t enables); 
 int flower8_get_trigger_enables(flower8_bouquet_t * dev, flower8_trigger_enables_t *enables); 
 
-int flower8_set_trigger_mask(flower8_bouquet_t * dev, uint8_t mask); 
+int flower8_set_coinc_trigger_mask(flower8_bouquet_t * dev, uint8_t mask); 
+int flower8_set_phased_trigger_mask(flower8_bouquet_t * dev, uint16_t trig_mask_lower,uint16_t trig_mask_upper); 
 
 /**Set the delayed PPS delay. The delay is in multiples of 40 ns*/
 int flower8_set_delayed_pps_delay(flower8_bouquet_t * dev, uint32_t delay); 

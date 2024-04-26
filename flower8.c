@@ -185,6 +185,8 @@ struct flower8_bouquet
   flower8_coinc_trigger_config_t coinc_trig_cfg; 
   //flower8_phased_trigger_config_t phased_trig_cfg; 
 
+  flower8_trigger_enables_t trig_enables;
+
   uint8_t trig_thresh[FLOWER8_MAX_TRIG_CHAN]; 
   uint8_t servo_thresh[FLOWER8_MAX_TRIG_CHAN]; 
   uint16_t trigger_mask; 
@@ -1310,13 +1312,12 @@ static double getrms(int N, uint8_t* X)
 
 
 int flower8_set_trigger_enables(flower8_bouquet_t *b, flower8_trigger_enables_t enables)
-
 {
   //not sure if extin should be 1 but... let's just do it? okay what are all these lol
   flower8_word_t tin = {.bytes = {FLWR8_REG_TRIG_ENABLES,0, enables.enable_coinc+(enables.enable_phased<1), enables.enable_pps }}; 
   flower8_word_t tout = {.bytes={FLWR8_REG_SMATRIG,0,enables.enable_pps,enables.enable_coinc}};
   flower8_word_t tinS = {.bytes={FLWR8_REG_TRIG_ENABLES,1,0, enables.enable_pps}};
-
+  b->trig_enables={.enable_pps=enables.enable_pps,.enable_coinc=enables.enable_coinc,.enable_phased=enables.enable_phased};
   return write_word(b->M,&tout) || write_word(b->M,&tin) || write_word(b->S,&tinS); 
 }
 
@@ -1326,9 +1327,10 @@ int flower8_get_trigger_enables(flower8_bouquet_t *b, flower8_trigger_enables_t 
   if (!enables) return -1; 
   flower8_word_t word = {0}; 
   flower8_read_register(b->M, FLWR8_REG_TRIG_ENABLES, &word); 
-  enables->enable_phased = word.bytes[2]&0x2; 
-  enables->enable_coinc = word.bytes[2]&0x1; 
-  enables->enable_pps = word.bytes[3]; 
+  b->trig_enables.enable_pps= word.bytes[3]; 
+  b->trig_enables.enable_coinc= word.bytes[2]&0x1; 
+  b->trig_enables.enable_phased=  word.bytes[2]&0x2;  
+
   return 0; 
 }
 
@@ -1542,7 +1544,7 @@ int flower8_bouquet_reset(flower8_bouquet_t * b)
 }
 
 
-int flower8_set_trigger_mask(flower8_bouquet_t *b, uint8_t trig_mask) 
+int flower8_set_coinc_trigger_mask(flower8_bouquet_t *b, uint8_t trig_mask) 
 {
   flower8_word_t mask_word = {.bytes={FLWR8_REG_TRIG_MASK,0,0,trig_mask}}; 
   if (!write_word(b->M,&mask_word))
@@ -1556,7 +1558,7 @@ int flower8_set_trigger_mask(flower8_bouquet_t *b, uint8_t trig_mask)
 int flower8_set_phased_trigger_mask(flower8_bouquet_t *b, uint16_t trig_mask_lower,uint16_t trig_mask_upper) 
 {
   flower8_word_t mask_word_lower = {.bytes={FLWR8_REG_BEAM_MASK_LOWER,((trig_mask_lower&0x1f0000)>>16),((trig_mask_lower&0xff00)>>8),trig_mask_lower&0xff}}; 
-  flower8_word_t mask_word_upper = {.bytes={FLWR8_REG_BEAM_MASK_upper,((trig_mask_upper&0x1f0000)>>16),((trig_mask_upper&0xff00)>>8),trig_mask_upper&0xff}}; 
+  flower8_word_t mask_word_upper = {.bytes={FLWR8_REG_BEAM_MASK_UPPER,((trig_mask_upper&0x1f0000)>>16),((trig_mask_upper&0xff00)>>8),trig_mask_upper&0xff}}; 
 
 
   if (!write_word(b->M,&mask_word_lower)||!write_word(b->M,&mask_word_upper))
@@ -1620,7 +1622,12 @@ int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, b
   hd->trig_time[0] = meta.timestamp[0]; 
   hd->trig_time[1] = meta.timestamp[1]; 
   hd->trig_pol = POL_MIXED; 
-  hd->channel_mask = b->trigger_mask; 
+  hd->coinc_trigger_channel_mask = b->trigger_mask; 
+  hd->beam_mask_lower=b->phased_trigger_mask_lower;
+  hd->beam_mask_upper=b->phased_trigger_mask_upper;
+  hd->triggered_beams_lower=b->trig_beams_lower;
+  hd->triggered_beams_upper=b->trig_beams_upper;
+
   hd->trig_type = meta.trig_type == 1 ? BN_TRIG_SW : 
 	          meta.trig_type == 2 ? BN_TRIG_EXT : 
 		  meta.trig_type == 3 ? BN_TRIG_COINC : 
@@ -1629,7 +1636,7 @@ int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, b
 		  BN_TRIG_NONE; 
 
   hd->gate_flag = meta.pps; 
-  hd->coinc_trigger_mask = meta.trig_channels; 
+  hd->triggered_channels = meta.trig_channels; 
   hd->pps_counter = meta.pps_count; 
   ev->event_number = meta.event_number + b->event_number_offset; 
   ev->buffer_length = b->buflen; 
@@ -1700,38 +1707,50 @@ int beacon_fill_status(flower8_bouquet_t * b, beacon_status_t *s)
   {
     fprintf(stderr,"Problem reading daqstatus?\n"); 
   }
-
-  s->global_scalers[2] = ds.s_1Hz.trig_coinc; 
-  s->global_scalers[1] = ds.s_1Hz_gated.trig_coinc; 
-  s->global_scalers[0] = ds.s_100mHz.trig_coinc; 
-  s->global_servo_scalers[2] = ds.s_1Hz.servo_coinc; 
-  s->global_servo_scalers[1] = ds.s_1Hz_gated.servo_coinc; 
-  s->global_servo_scalers[0] = ds.s_100mHz.servo_coinc; 
-
-  for (int i = 0; i < BN_NUM_CHAN; i++) 
+  if(b->trig_enables.enable_coinc)
   {
-    s->channel_trig_scalers[i][2] = ds.s_1Hz.trig_per_chan[i]; 
-    s->channel_trig_scalers[i][1] = ds.s_1Hz_gated.trig_per_chan[i]; 
-    s->channel_trig_scalers[i][0] = ds.s_100mHz.trig_per_chan[i]; 
-    s->channel_servo_scalers[i][2] = ds.s_1Hz.servo_per_chan[i]; 
-    s->channel_servo_scalers[i][1] = ds.s_1Hz_gated.servo_per_chan[i]; 
-    s->channel_servo_scalers[i][0] = ds.s_100mHz.servo_per_chan[i]; 
-    s->channel_trig_thresholds[i] = ds.trig_thresholds[i]; 
-    s->channel_servo_thresholds[i] = ds.servo_thresholds[i]; 
+    s->global_coinc_trig_scalers[2] = ds.s_1Hz.trig_coinc; 
+    s->global_coinc_trig_scalers[1] = ds.s_1Hz_gated.trig_coinc; 
+    s->global_coinc_trig_scalers[0] = ds.s_100mHz.trig_coinc; 
+    s->global_coinc_servo_scalers[2] = ds.s_1Hz.servo_coinc; 
+    s->global_coinc_servo_scalers[1] = ds.s_1Hz_gated.servo_coinc; 
+    s->global_coinc_servo_scalers[0] = ds.s_100mHz.servo_coinc; 
+
+    for (int i = 0; i < BN_NUM_CHAN; i++) 
+    {
+      s->channel_trig_scalers[i][2] = ds.s_1Hz.trig_per_chan[i]; 
+      s->channel_trig_scalers[i][1] = ds.s_1Hz_gated.trig_per_chan[i]; 
+      s->channel_trig_scalers[i][0] = ds.s_100mHz.trig_per_chan[i]; 
+      s->channel_servo_scalers[i][2] = ds.s_1Hz.servo_per_chan[i]; 
+      s->channel_servo_scalers[i][1] = ds.s_1Hz_gated.servo_per_chan[i]; 
+      s->channel_servo_scalers[i][0] = ds.s_100mHz.servo_per_chan[i]; 
+      s->channel_trig_thresholds[i] = ds.trig_thresholds[i]; 
+      s->channel_servo_thresholds[i] = ds.servo_thresholds[i]; 
+    }
   }
+
+  if(b->trig_enables.enable_phased)
+  {
+    s->global_phased_scalers[2] = ds.s_1Hz.trig_phased; 
+    s->global_phased_scalers[1] = ds.s_1Hz_gated.trig_phased; 
+    s->global_phased_scalers[0] = ds.s_100mHz.trig_phased; 
+    s->global_phased_servo_scalers[2] = ds.s_1Hz.servo_phased; 
+    s->global_phased_servo_scalers[1] = ds.s_1Hz_gated.servo_phased; 
+    s->global_phased_servo_scalers[0] = ds.s_100mHz.servo_phased; 
 
     for (int i = 0; i < BN_NUM_BEAMS; i++) 
-  {
-    s->beam_trig_scalers[i][2] = ds.s_1Hz.trig_per_beam[i]; 
-    s->beam_trig_scalers[i][1] = ds.s_1Hz_gated.trig_per_beam[i]; 
-    s->beam_trig_scalers[i][0] = ds.s_100mHz.trig_per_beam[i]; 
-    s->beam_servo_scalers[i][2] = ds.s_1Hz.servo_per_beam[i]; 
-    s->beam_servo_scalers[i][1] = ds.s_1Hz_gated.servo_per_beam[i]; 
-    s->beam_servo_scalers[i][0] = ds.s_100mHz.servo_per_beam[i]; 
-    s->beam_trig_thresholds[i] = ds.phased_trig_thresholds[i]; 
-    s->beam_servo_thresholds[i] = ds.phased__servo_thresholds[i]; 
+    {
+      s->beam_trig_scalers[i][2] = ds.s_1Hz.trig_per_beam[i]; 
+      s->beam_trig_scalers[i][1] = ds.s_1Hz_gated.trig_per_beam[i]; 
+      s->beam_trig_scalers[i][0] = ds.s_100mHz.trig_per_beam[i]; 
+      s->beam_servo_scalers[i][2] = ds.s_1Hz.servo_per_beam[i]; 
+      s->beam_servo_scalers[i][1] = ds.s_1Hz_gated.servo_per_beam[i]; 
+      s->beam_servo_scalers[i][0] = ds.s_100mHz.servo_per_beam[i]; 
+      s->beam_trig_thresholds[i] = ds.phased_trig_thresholds[i]; 
+      s->beam_servo_thresholds[i] = ds.phased__servo_thresholds[i]; 
+    }
   }
-
+ 
   s->readout_time = (int) ds.when; 
   s->readout_time_ns = 1e9 * ( ds.when - s->readout_time); 
 

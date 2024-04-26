@@ -46,7 +46,7 @@ extern "C" {
 #define BN_MAX_BOARDS 2  
 #define BN_LEGACY_MAX_BOARDS 1  
 
-/** The number of trigger beams available  (for legacy(*/ 
+/** The number of trigger beams available*/ 
 #define BN_NUM_BEAMS 42
 
 
@@ -111,15 +111,14 @@ typedef struct beacon_header
   uint64_t trig_time[BN_MAX_BOARDS];                  //!< Board trigger time (raw units) 
   uint32_t approx_trigger_time;                       //!< Board trigger time converted to real units (approx secs), master only
   uint32_t approx_trigger_time_nsecs;                 //!< Board trigger time converted to real units (approx nnsecs), master only
-  uint32_t triggered_beams;                           //!< The lower beams that triggered 0-21 (all 0 in case of concidence trigger)
+  uint32_t triggered_beams_lower;                           //!< The lower beams that triggered 0-21 (all 0 in case of concidence trigger)
   uint32_t triggered_beams_upper;                     //!< The upper beams that triggered 22-41 (all 0 in case of concidence trigger)
   uint32_t triggered_channels;                        //!< The channels that triggered  (all 0 in case of phased trigger)
-  uint32_t beam_mask;                                 //!< The enabled beams 0-21
+  uint32_t beam_mask_lower;                                 //!< The enabled beams 0-21
   uint32_t beam_mask_upper;                           //!< The enabled beams 22-41
-  uint32_t beam_power;                                //!< The power in the triggered beam (all 0 in case of coincidence trigger) --- likely not implemented
   uint32_t deadtime [BN_MAX_BOARDS];                  //!< ??? Will we have this available? If so, this will be a fraction. (store for slave board as well) 
   uint8_t buffer_number;                              //!< the buffer number (do we need this?) 
-  uint8_t channel_mask;                               //!< The channels allowed to participate in the trigger
+  uint8_t coinc_trig_channel_mask;                               //!< The channels allowed to participate in the trigger
   uint8_t channel_read_mask[BN_MAX_BOARDS];           //!< The channels actually read
   uint8_t gate_flag;                                  //!< gate flag  (used to be channel_overflow but that was never used) 
   uint8_t buffer_mask;                                //!< The buffer mask at time of read out (do we want this?)   
@@ -171,7 +170,11 @@ typedef struct beacon_status
   uint64_t latched_pps_count; 
   uint32_t scaler_update_counter; 
 
-  uint16_t global_servo_scalers[BN_NUM_SCALERS];   // for coinc trigger
+  uint16_t global_coinc_trig_scalers[BN_NUM_SCALERS];   // for coinc trigger
+  uint16_t global_phased_trig_scalers[BN_NUM_SCALERS];   // for phased trigger
+  uint16_t global_coinc_servo_scalers[BN_NUM_SCALERS];   // for coinc trigger
+  uint16_t global_phased_servo_scalers[BN_NUM_SCALERS];   // for phased trigger
+
   uint16_t channel_trig_scalers[BN_NUM_CHAN][BN_NUM_SCALERS];   // for coinc trigger
   uint16_t channel_servo_scalers[BN_NUM_CHAN][BN_NUM_SCALERS];   // for coinc trigger
   uint8_t channel_trig_thresholds[BN_NUM_CHAN]; 

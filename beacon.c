@@ -996,8 +996,8 @@ int beacon_header_print(FILE *f, const beacon_header_t *hd)
   tim = gmtime((time_t*) &t); 
   strftime(timstr,sizeof(timstr), "%Y-%m-%d %H:%M:%S", tim);  
 //  fprintf(f, "\ttrig time (est.): %s.%09d UTC\n",timstr, hd->approx_trigger_time_nsecs); 
-  fprintf(f, "\ttrig beams: %x , %x\n", hd->triggered_beams, hd->trigger_beams_upper); 
-  fprintf(f, "\tenabld beams: %x , %x\n", hd->beam_mask, hd->beam_mask_upper); 
+  fprintf(f, "\ttrig beams: %x , %x\n", hd->triggered_beams_lower, hd->trigger_beams_upper); 
+  fprintf(f, "\tenabld beams: %x , %x\n", hd->beam_mask_lower, hd->beam_mask_upper); 
 //  fprintf(f, "\ttriggered beam power: %u\n", hd->beam_power) ; 
 //  fprintf(f,"\tprev sec deadtime: ");
 //  for (i = 0; i < BN_MAX_BOARDS; i++)
