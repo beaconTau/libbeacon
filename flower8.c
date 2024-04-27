@@ -578,7 +578,7 @@ int flower8_set_phased_thresholds(flower8_bouquet_t *b, const uint16_t * phased_
   return ret; 
 }
 
-int flower8_configure_trigger(flower8_bouquet_t * b, flower8_coinc_trigger_config_t  cfg) 
+int flower8_configure_coinc_trigger(flower8_bouquet_t * b, flower8_coinc_trigger_config_t  cfg) 
 {
   if (!b || !b->M) return -1; 
   int ret = 0;

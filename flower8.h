@@ -146,7 +146,7 @@ int flower8_close(flower8_dev_t * dev);
 int flower8_dump(FILE* f, flower8_dev_t *dev); 
 int flower8_bouquet_dump(FILE* f, flower8_bouquet_t * b); 
 
-int flower8_configure_trigger(flower8_bouquet_t * b, flower8_coinc_trigger_config_t cfg); 
+int flower8_configure_coinc_trigger(flower8_bouquet_t * b, flower8_coinc_trigger_config_t cfg); 
 
 int flower8_set_coinc_thresholds(flower8_bouquet_t *b, const uint8_t * trigger_thresholds, const uint8_t * servo_thresholds, uint8_t mask); 
 int flower8_set_phased_thresholds(flower8_bouquet_t *b, const uint16_t * phased_trigger_thresholds, const uint16_t * phased_servo_thresholds);
