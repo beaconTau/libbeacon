@@ -187,9 +187,9 @@ struct flower8_bouquet
 
   flower8_trigger_enables_t trig_enables;
 
-  uint8_t trig_thresh[FLOWER8_MAX_TRIG_CHAN]; 
-  uint8_t servo_thresh[FLOWER8_MAX_TRIG_CHAN]; 
-  uint16_t trigger_mask; 
+  uint8_t coinc_trig_thresh[FLOWER8_MAX_TRIG_CHAN]; 
+  uint8_t coinc_servo_thresh[FLOWER8_MAX_TRIG_CHAN]; 
+  uint16_t coinc_trigger_channel_mask; 
   
   uint16_t phased_trig_thresh[FLOWER8_MAX_TRIG_BEAMS]; 
   uint16_t phased_servo_thresh[FLOWER8_MAX_TRIG_BEAMS]; 
@@ -279,8 +279,8 @@ flower8_bouquet_t * flower8_bouquet_prepare(flower8_dev_t * M, flower8_dev_t * S
   for (int i = 0; i < FLOWER8_MAX_TRIG_CHAN; i++) 
   {
     flower8_read_register(b->M, FLWR8_REG_TRIG_CH0_THR+i, &thresh_word); 
-    b->trig_thresh[i] = thresh_word.bytes[3]; 
-    b->servo_thresh[i] = thresh_word.bytes[2]; 
+    b->coinc_trig_thresh[i] = thresh_word.bytes[3]; 
+    b->coinc_servo_thresh[i] = thresh_word.bytes[2]; 
   }
 
   for (int i = 0; i < FLOWER8_MAX_TRIG_BEAMS; i++) 
@@ -299,9 +299,9 @@ flower8_bouquet_t * flower8_bouquet_prepare(flower8_dev_t * M, flower8_dev_t * S
   //read in the trigger configuration 
   flower8_word_t cfg_word = {0}; 
   flower8_read_register(b->M,FLWR8_REG_COINCTRIG_SETUP, &cfg_word); 
-  b->trig_cfg.vpp_mode = cfg_word.bytes[1]; 
-  b->trig_cfg.window = cfg_word.bytes[2];  
-  b->trig_cfg.num_coinc = cfg_word.bytes[3]; 
+  b->coinc_trig_cfg.vpp_mode = cfg_word.bytes[1]; 
+  b->coinc_trig_cfg.window = cfg_word.bytes[2];  
+  b->coinc_trig_cfg.num_coinc = cfg_word.bytes[3]; 
 
   //another one for phased trigger configuration
  
@@ -321,7 +321,7 @@ flower8_bouquet_t * flower8_bouquet_prepare(flower8_dev_t * M, flower8_dev_t * S
 
   flower8_word_t word_mask;  
   flower8_read_register(b->M, FLWR8_REG_TRIG_MASK, &word_mask); 
-  b->trigger_mask = word_mask.bytes[3]; 
+  b->coinc_trigger_channel_mask = word_mask.bytes[3]; 
 
   flower8_read_register(b->M, FLWR8_REG_BEAM_MASK_LOWER, &word_mask); 
   b->phased_trigger_mask_lower = word_mask.bytes[3]+(word_mask.bytes[2]<<8)+((word_mask.bytes[1]&0b00011111)<<16); 
@@ -540,8 +540,8 @@ int flower8_set_coinc_thresholds(flower8_bouquet_t *b, const uint8_t * trigger_t
       words[ii].bytes[0] = FLWR8_REG_TRIG_CH0_THR+i; 
       words[ii].bytes[2] = servo; 
       words[ii].bytes[3] = trig; 
-      b->trig_thresh[i] = trig;
-      b->servo_thresh[i] = servo;
+      b->coinc_trig_thresh[i] = trig;
+      b->coinc_servo_thresh[i] = servo;
       ii++; 
     }
   }
@@ -549,7 +549,7 @@ int flower8_set_coinc_thresholds(flower8_bouquet_t *b, const uint8_t * trigger_t
   return ret; 
 }
 
-int flower8_set_phased_thresholds(flower8_bouquet_t *b, const uint16_t * phased_trigger_thresholds, const uint16_t * phased_servo_thresholds, uint8_t mask) 
+int flower8_set_phased_thresholds(flower8_bouquet_t *b, const uint16_t * phased_trigger_thresholds, const uint16_t * phased_servo_thresholds) 
 {
   if (!b || !b->M) return -1; 
 
@@ -558,8 +558,8 @@ int flower8_set_phased_thresholds(flower8_bouquet_t *b, const uint16_t * phased_
   int ii = 0; 
   for (int i = 0; i < FLOWER8_MAX_TRIG_BEAMS; i++) 
   {
-    if (mask & (1 << i)) 
-    {
+    //if (mask & (1 << i)) maybe add this back in
+    //{
       uint16_t servo = phased_servo_thresholds[i]; 
       uint16_t trig = phased_trigger_thresholds[i]; 
       if (servo > 4095) servo = 4095; 
@@ -572,13 +572,13 @@ int flower8_set_phased_thresholds(flower8_bouquet_t *b, const uint16_t * phased_
       b->phased_trig_thresh[i] = trig;
       b->phased_servo_thresh[i] = servo;
       ii++; 
-    }
+    //}
   }
   int ret =  write_words(b->M, ii, words); 
   return ret; 
 }
 
-int flower8_configure_trigger(flower8_bouquet_t * b, flower8_trigger_config_t  cfg) 
+int flower8_configure_trigger(flower8_bouquet_t * b, flower8_coinc_trigger_config_t  cfg) 
 {
   if (!b || !b->M) return -1; 
   int ret = 0;
@@ -588,7 +588,7 @@ int flower8_configure_trigger(flower8_bouquet_t * b, flower8_trigger_config_t  c
   word.bytes[2] = cfg.window; 
   word.bytes[3] = cfg.num_coinc; 
   ret = write_word(b->M,&word); 
-  if (!ret) b->trig_cfg = cfg; 
+  if (!ret) b->coinc_trig_cfg = cfg; 
   return ret; 
 }
 
@@ -666,8 +666,8 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
 
   for (int i = 0; i < FLOWER8_MAX_TRIG_CHAN; i++) 
   {
-    ds->trig_thresholds[i] = b->trig_thresh[i];
-    ds->servo_thresholds[i] = b->servo_thresh[i];
+    ds->coinc_trig_thresholds[i] = b->coinc_trig_thresh[i];
+    ds->coinc_servo_thresholds[i] = b->coinc_servo_thresh[i];
   }
 
   for (int i = 0; i < FLOWER8_MAX_TRIG_BEAMS; i++) 
@@ -698,7 +698,7 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
 
 
   int ixfer = 0; 
-  int max_reg = TOTAL_SCALERS+4; 
+  int max_reg = TOTAL_SCALERS; 
   for (int ireg = 0; ireg <max_reg; ireg++) 
   {
 	  //if (ireg == 9) ireg++;  
@@ -741,33 +741,33 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
       raw_scalers[2*i+1] = high;
     }
     #define base_coinc_scalers_addr 6
-    ds->s_1Hz.trig_coinc = raw_scalers[0+base_coinc_scalers_addr];
-    for (int i = 0; i < 8; i++) ds->s_1Hz.trig_per_chan[i] = raw_scalers[1+i+base_coinc_scalers_addr]; 
-    ds->s_1Hz.servo_coinc = raw_scalers[9+base_coinc_scalers_addr];
-    for (int i = 0; i < 8; i++) ds->s_1Hz.servo_per_chan[i] = raw_scalers[10+i+base_coinc_scalers_addr]; 
-    ds->s_1Hz_gated.trig_coinc = raw_scalers[20+base_coinc_scalers_addr];
-    for (int i = 0; i < 8; i++) ds->s_1Hz_gated.trig_per_chan[i] = raw_scalers[21+i+base_coinc_scalers_addr]; 
-    ds->s_1Hz_gated.servo_coinc = raw_scalers[29+base_coinc_scalers_addr];
-    for (int i = 0; i < 8; i++) ds->s_1Hz_gated.servo_per_chan[i] = raw_scalers[30+i+base_coinc_scalers_addr]; 
-    ds->s_100mHz.trig_coinc = raw_scalers[40+base_coinc_scalers_addr];
-    for (int i = 0; i < 8; i++) ds->s_100mHz.trig_per_chan[i] = raw_scalers[41+i+base_coinc_scalers_addr]; 
-    ds->s_100mHz.servo_coinc = raw_scalers[49+base_coinc_scalers_addr];
-    for (int i = 0; i < 8; i++) ds->s_100mHz.servo_per_chan[i] = raw_scalers[50+i+base_coinc_scalers_addr]; 
+    ds->c_s_1Hz.trig_channel = raw_scalers[0+base_coinc_scalers_addr];
+    for (int i = 0; i < 8; i++) ds->c_s_1Hz.trig_per_chan[i] = raw_scalers[1+i+base_coinc_scalers_addr]; 
+    ds->c_s_1Hz.servo_channel = raw_scalers[9+base_coinc_scalers_addr];
+    for (int i = 0; i < 8; i++) ds->c_s_1Hz.servo_per_chan[i] = raw_scalers[10+i+base_coinc_scalers_addr]; 
+    ds->c_s_1Hz_gated.trig_channel = raw_scalers[20+base_coinc_scalers_addr];
+    for (int i = 0; i < 8; i++) ds->c_s_1Hz_gated.trig_per_chan[i] = raw_scalers[21+i+base_coinc_scalers_addr]; 
+    ds->c_s_1Hz_gated.servo_channel = raw_scalers[29+base_coinc_scalers_addr];
+    for (int i = 0; i < 8; i++) ds->c_s_1Hz_gated.servo_per_chan[i] = raw_scalers[30+i+base_coinc_scalers_addr]; 
+    ds->c_s_100mHz.trig_channel = raw_scalers[40+base_coinc_scalers_addr];
+    for (int i = 0; i < 8; i++) ds->c_s_100mHz.trig_per_chan[i] = raw_scalers[41+i+base_coinc_scalers_addr]; 
+    ds->c_s_100mHz.servo_channel = raw_scalers[49+base_coinc_scalers_addr];
+    for (int i = 0; i < 8; i++) ds->c_s_100mHz.servo_per_chan[i] = raw_scalers[50+i+base_coinc_scalers_addr]; 
     
     #define base_phased_scalers_addr 60
     #define num_beams 42
-    ds->s_1Hz.trig_phased = raw_scalers[0+base_phased_scalers_addr];
-    for (int i = 0; i < num_beams; i++) ds->s_1Hz.trig_per_beam[i] = raw_scalers[43+i+base_phased_scalers_addr]; 
-    ds->s_1Hz.servo_phased = raw_scalers[85+base_phased_scalers_addr];
-    for (int i = 0; i < num_beams; i++) ds->s_1Hz.servo_per_beam[i] = raw_scalers[86+i+base_phased_scalers_addr]; 
-    ds->s_1Hz_gated.trig_beam = raw_scalers[128+base_phased_scalers_addr];
-    for (int i = 0; i < num_beams; i++) ds->s_1Hz_gated.trig_per_beam[i] = raw_scalers[129+i+base_phased_scalers_addr]; 
-    ds->s_1Hz_gated.servo_phased = raw_scalers[171+base_phased_scalers_addr];
-    for (int i = 0; i < num_beams; i++) ds->s_1Hz_gated.servo_per_beam[i] = raw_scalers[172+i+base_phased_scalers_addr]; 
-    ds->s_100mHz.trig_phased = raw_scalers[212+base_phased_scalers_addr];
-    for (int i = 0; i < num_beams; i++) ds->s_100mHz.trig_per_beam[i] = raw_scalers[213+i]+base_phased_scalers_addr; 
-    ds->s_100mHz.servo_phased = raw_scalers[255+base_phased_scalers_addr];
-    for (int i = 0; i < num_beams; i++) ds->s_100mHz.servo_per_beam[i] = raw_scalers[256+i+base_phased_scalers_addr]; 
+    ds->p_s_1Hz.trig_beam = raw_scalers[0+base_phased_scalers_addr];
+    for (int i = 0; i < num_beams; i++) ds->p_s_1Hz.trig_per_beam[i] = raw_scalers[43+i+base_phased_scalers_addr]; 
+    ds->p_s_1Hz.servo_beam = raw_scalers[85+base_phased_scalers_addr];
+    for (int i = 0; i < num_beams; i++) ds->p_s_1Hz.servo_per_beam[i] = raw_scalers[86+i+base_phased_scalers_addr]; 
+    ds->p_s_1Hz_gated.trig_beam = raw_scalers[128+base_phased_scalers_addr];
+    for (int i = 0; i < num_beams; i++) ds->p_s_1Hz_gated.trig_per_beam[i] = raw_scalers[129+i+base_phased_scalers_addr]; 
+    ds->p_s_1Hz_gated.servo_beam = raw_scalers[171+base_phased_scalers_addr];
+    for (int i = 0; i < num_beams; i++) ds->p_s_1Hz_gated.servo_per_beam[i] = raw_scalers[172+i+base_phased_scalers_addr]; 
+    ds->p_s_100mHz.trig_beam = raw_scalers[212+base_phased_scalers_addr];
+    for (int i = 0; i < num_beams; i++) ds->p_s_100mHz.trig_per_beam[i] = raw_scalers[213+i]+base_phased_scalers_addr; 
+    ds->p_s_100mHz.servo_beam = raw_scalers[255+base_phased_scalers_addr];
+    for (int i = 0; i < num_beams; i++) ds->p_s_100mHz.servo_per_beam[i] = raw_scalers[256+i+base_phased_scalers_addr]; 
 
     uint64_t t_low = ( be32toh(dest_time[0].word) & 0xffffff ); 
     uint64_t t_high = ( be32toh(dest_time[1].word) & 0xffffff ); 
@@ -822,11 +822,11 @@ int flower8_bouquet_dump(FILE * f, flower8_bouquet_t * b)
     ret += flower8_dump(f, b->S); 
   }
   ret+= fprintf(f,"  TRIGCONFIG:  window: %d, num_coinc: %d, vpp_mode: %d\n", 
-                b->trig_cfg.window, b->trig_cfg.num_coinc, b->trig_cfg.vpp_mode); 
+                b->coinc_trig_cfg.window, b->coinc_trig_cfg.num_coinc, b->coinc_trig_cfg.vpp_mode); 
 
   for (int i = 0; i < 4; i++) 
   {
-     ret+= fprintf(f,"  THRESH_CH%d:  servo:  %d, trig: %d\n", i, b->servo_thresh[i], b->trig_thresh[i]);
+     ret+= fprintf(f,"  THRESH_CH%d:  servo:  %d, trig: %d\n", i, b->coinc_servo_thresh[i], b->coinc_trig_thresh[i]);
   }
   
   for (int i = 0; i < 42; i++) 
@@ -1317,7 +1317,9 @@ int flower8_set_trigger_enables(flower8_bouquet_t *b, flower8_trigger_enables_t 
   flower8_word_t tin = {.bytes = {FLWR8_REG_TRIG_ENABLES,0, enables.enable_coinc+(enables.enable_phased<1), enables.enable_pps }}; 
   flower8_word_t tout = {.bytes={FLWR8_REG_SMATRIG,0,enables.enable_pps,enables.enable_coinc}};
   flower8_word_t tinS = {.bytes={FLWR8_REG_TRIG_ENABLES,1,0, enables.enable_pps}};
-  b->trig_enables={.enable_pps=enables.enable_pps,.enable_coinc=enables.enable_coinc,.enable_phased=enables.enable_phased};
+  b->trig_enables.enable_pps=enables.enable_pps,
+  b->trig_enables.enable_coinc=enables.enable_coinc,
+  b->trig_enables.enable_phased=enables.enable_phased;
   return write_word(b->M,&tout) || write_word(b->M,&tin) || write_word(b->S,&tinS); 
 }
 
@@ -1549,7 +1551,7 @@ int flower8_set_coinc_trigger_mask(flower8_bouquet_t *b, uint8_t trig_mask)
   flower8_word_t mask_word = {.bytes={FLWR8_REG_TRIG_MASK,0,0,trig_mask}}; 
   if (!write_word(b->M,&mask_word))
   {
-    b->trigger_mask = trig_mask; 
+    b->coinc_trigger_channel_mask = trig_mask; 
     return 0; 
   }
   return -1; 
@@ -1622,11 +1624,12 @@ int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, b
   hd->trig_time[0] = meta.timestamp[0]; 
   hd->trig_time[1] = meta.timestamp[1]; 
   hd->trig_pol = POL_MIXED; 
-  hd->coinc_trigger_channel_mask = b->trigger_mask; 
+  hd->coinc_trig_channel_mask = b->coinc_trigger_channel_mask; 
+  hd->triggered_channels=meta.trig_channels;
   hd->beam_mask_lower=b->phased_trigger_mask_lower;
   hd->beam_mask_upper=b->phased_trigger_mask_upper;
-  hd->triggered_beams_lower=b->trig_beams_lower;
-  hd->triggered_beams_upper=b->trig_beams_upper;
+  hd->triggered_beams_lower=meta.trig_beams_lower;
+  hd->triggered_beams_upper=meta.trig_beams_upper;
 
   hd->trig_type = meta.trig_type == 1 ? BN_TRIG_SW : 
 	          meta.trig_type == 2 ? BN_TRIG_EXT : 
@@ -1709,45 +1712,45 @@ int beacon_fill_status(flower8_bouquet_t * b, beacon_status_t *s)
   }
   if(b->trig_enables.enable_coinc)
   {
-    s->global_coinc_trig_scalers[2] = ds.s_1Hz.trig_coinc; 
-    s->global_coinc_trig_scalers[1] = ds.s_1Hz_gated.trig_coinc; 
-    s->global_coinc_trig_scalers[0] = ds.s_100mHz.trig_coinc; 
-    s->global_coinc_servo_scalers[2] = ds.s_1Hz.servo_coinc; 
-    s->global_coinc_servo_scalers[1] = ds.s_1Hz_gated.servo_coinc; 
-    s->global_coinc_servo_scalers[0] = ds.s_100mHz.servo_coinc; 
+    s->global_coinc_trig_scalers[2] = ds.c_s_1Hz.trig_channel; 
+    s->global_coinc_trig_scalers[1] = ds.c_s_1Hz_gated.trig_channel; 
+    s->global_coinc_trig_scalers[0] = ds.c_s_100mHz.trig_channel; 
+    s->global_coinc_servo_scalers[2] = ds.c_s_1Hz.servo_channel; 
+    s->global_coinc_servo_scalers[1] = ds.c_s_1Hz_gated.servo_channel; 
+    s->global_coinc_servo_scalers[0] = ds.c_s_100mHz.servo_channel; 
 
     for (int i = 0; i < BN_NUM_CHAN; i++) 
     {
-      s->channel_trig_scalers[i][2] = ds.s_1Hz.trig_per_chan[i]; 
-      s->channel_trig_scalers[i][1] = ds.s_1Hz_gated.trig_per_chan[i]; 
-      s->channel_trig_scalers[i][0] = ds.s_100mHz.trig_per_chan[i]; 
-      s->channel_servo_scalers[i][2] = ds.s_1Hz.servo_per_chan[i]; 
-      s->channel_servo_scalers[i][1] = ds.s_1Hz_gated.servo_per_chan[i]; 
-      s->channel_servo_scalers[i][0] = ds.s_100mHz.servo_per_chan[i]; 
-      s->channel_trig_thresholds[i] = ds.trig_thresholds[i]; 
-      s->channel_servo_thresholds[i] = ds.servo_thresholds[i]; 
+      s->channel_trig_scalers[i][2] = ds.c_s_1Hz.trig_per_chan[i]; 
+      s->channel_trig_scalers[i][1] = ds.c_s_1Hz_gated.trig_per_chan[i]; 
+      s->channel_trig_scalers[i][0] = ds.c_s_100mHz.trig_per_chan[i]; 
+      s->channel_servo_scalers[i][2] = ds.c_s_1Hz.servo_per_chan[i]; 
+      s->channel_servo_scalers[i][1] = ds.c_s_1Hz_gated.servo_per_chan[i]; 
+      s->channel_servo_scalers[i][0] = ds.c_s_100mHz.servo_per_chan[i]; 
+      s->channel_trig_thresholds[i] = ds.coinc_trig_thresholds[i]; 
+      s->channel_servo_thresholds[i] = ds.coinc_servo_thresholds[i]; 
     }
   }
 
   if(b->trig_enables.enable_phased)
   {
-    s->global_phased_scalers[2] = ds.s_1Hz.trig_phased; 
-    s->global_phased_scalers[1] = ds.s_1Hz_gated.trig_phased; 
-    s->global_phased_scalers[0] = ds.s_100mHz.trig_phased; 
-    s->global_phased_servo_scalers[2] = ds.s_1Hz.servo_phased; 
-    s->global_phased_servo_scalers[1] = ds.s_1Hz_gated.servo_phased; 
-    s->global_phased_servo_scalers[0] = ds.s_100mHz.servo_phased; 
+    s->global_phased_trig_scalers[2] = ds.p_s_1Hz.trig_beam; 
+    s->global_phased_trig_scalers[1] = ds.p_s_1Hz_gated.trig_beam; 
+    s->global_phased_trig_scalers[0] = ds.p_s_100mHz.trig_beam; 
+    s->global_phased_servo_scalers[2] = ds.p_s_1Hz.servo_beam; 
+    s->global_phased_servo_scalers[1] = ds.p_s_1Hz_gated.servo_beam; 
+    s->global_phased_servo_scalers[0] = ds.p_s_100mHz.servo_beam; 
 
     for (int i = 0; i < BN_NUM_BEAMS; i++) 
     {
-      s->beam_trig_scalers[i][2] = ds.s_1Hz.trig_per_beam[i]; 
-      s->beam_trig_scalers[i][1] = ds.s_1Hz_gated.trig_per_beam[i]; 
-      s->beam_trig_scalers[i][0] = ds.s_100mHz.trig_per_beam[i]; 
-      s->beam_servo_scalers[i][2] = ds.s_1Hz.servo_per_beam[i]; 
-      s->beam_servo_scalers[i][1] = ds.s_1Hz_gated.servo_per_beam[i]; 
-      s->beam_servo_scalers[i][0] = ds.s_100mHz.servo_per_beam[i]; 
+      s->beam_trig_scalers[i][2] = ds.p_s_1Hz.trig_per_beam[i]; 
+      s->beam_trig_scalers[i][1] = ds.p_s_1Hz_gated.trig_per_beam[i]; 
+      s->beam_trig_scalers[i][0] = ds.p_s_100mHz.trig_per_beam[i]; 
+      s->beam_servo_scalers[i][2] = ds.p_s_1Hz.servo_per_beam[i]; 
+      s->beam_servo_scalers[i][1] = ds.p_s_1Hz_gated.servo_per_beam[i]; 
+      s->beam_servo_scalers[i][0] = ds.p_s_100mHz.servo_per_beam[i]; 
       s->beam_trig_thresholds[i] = ds.phased_trig_thresholds[i]; 
-      s->beam_servo_thresholds[i] = ds.phased__servo_thresholds[i]; 
+      s->beam_servo_thresholds[i] = ds.phased_servo_thresholds[i]; 
     }
   }
  

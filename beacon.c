@@ -311,12 +311,12 @@ static void transmogrify_v2_hdr(const beacon_header_v2_t * h2, beacon_header_t *
   COPY_HALF(trig_time)
   COPY(approx_trigger_time)
   COPY(approx_trigger_time_nsecs)
-  COPY(triggered_beams)
-  COPY(beam_mask)
-  COPY(beam_power)
+  //COPY(triggered_beams)
+  //COPY(beam_mask) ignore this for now
+  //COPY(beam_power)
   COPY_HALF(deadtime)
   COPY(buffer_number) 
-  COPY(channel_mask)
+  //COPY(channel_mask)
   COPY_HALF(channel_read_mask) 
   COPY(gate_flag) 
   COPY(buffer_mask) 
@@ -326,7 +326,7 @@ static void transmogrify_v2_hdr(const beacon_header_v2_t * h2, beacon_header_t *
   COPY(calpulser)
   COPY(sync_problem)
   COPY(pps_counter) 
-  COPY(dynamic_beam_mask) 
+  //COPY(dynamic_beam_mask) 
   COPY(veto_deadtime_counter) 
 #undef COPY
 #undef COPY_HALF
@@ -905,7 +905,6 @@ int beacon_hk_gzread(gzFile f, beacon_hk_t * h)
 
 int beacon_status_print(FILE *f, const beacon_status_t *st)
 {
-  int i ; 
   struct tm * tim; 
   char timstr[128]; 
   time_t t = st->readout_time;
@@ -916,20 +915,21 @@ int beacon_status_print(FILE *f, const beacon_status_t *st)
 
   if (!st->scaler_type) 
   {
-    fprintf(f,"\t which \t 0.1 Hz, gated 0.1Hz, 1 Hz, threshold, dynamically_masked? \n"); 
-    fprintf(f,"\tGLOBAL: \t%u \t%u \t%u\n", st->global_scalers[SCALER_VARIABLE], st->global_scalers[SCALER_GATED], st->global_scalers[SCALER_1HZ]); 
-    for (i = 0; i < BN_NUM_BEAMS; i++)
-    {
-      fprintf(f,"\tBEAM %d: \t%u \t%u \t%u \t%u\t %c \n",i, st->beam_scalers[SCALER_VARIABLE][i], st->beam_scalers[SCALER_GATED][i], st->beam_scalers[SCALER_1HZ][i], st->beam_thresholds[i], st->dynamic_beam_mask & (1 <<i) ? 'X' :' '); 
-    }
+    //also ignore this
+    //fprintf(f,"\t which \t 0.1 Hz, gated 0.1Hz, 1 Hz, threshold, dynamically_masked? \n"); 
+    //fprintf(f,"\tGLOBAL: \t%u \t%u \t%u\n", st->global_coinc_scalers[SCALER_VARIABLE], st->global_coinc_scalers[SCALER_GATED], st->global_coinc_scalers[SCALER_1HZ]); 
+    //for (i = 0; i < BN_NUM_BEAMS; i++)
+    //{
+    //  fprintf(f,"\tBEAM %d: \t%u \t%u \t%u \t%u\t %c \n",i, st->beam_scalers[SCALER_VARIABLE][i], st->beam_scalers[SCALER_GATED][i], st->beam_scalers[SCALER_1HZ][i], st->beam_thresholds[i], st->dynamic_beam_mask & (1 <<i) ? 'X' :' '); 
+    //}
   }
   else
   {
     fprintf(f,"latched pps count: %"PRIu64", scaler_update_counter: %u  \n", st->latched_pps_count, st->scaler_update_counter); 
     
-      fprintf(f,"CH  | trgthr | srvthr | srv1Hz | srvGate | srv100%sHz | trg1Hz | trgGate | trg100%sHz \n", st->scaler_type == 1 ? "m" : "" , st->scaler_type == 1 ?  "m" : ""); 
-      fprintf(f,"--------------------------------------------------------------------------------------\n"); 
-    for (int i = 0; i < 8; i++) 
+    fprintf(f,"CH  | trgthr | srvthr | srv1Hz | srvGate | srv100%sHz | trg1Hz | trgGate | trg100%sHz \n", st->scaler_type == 1 ? "m" : "" , st->scaler_type == 1 ?  "m" : ""); 
+    fprintf(f,"--------------------------------------------------------------------------------------\n"); 
+    for (int i = 0; i < BN_NUM_CHAN; i++) 
     {
 
       fprintf(f,"%02hhu  |   %03hhu  |  %03hhu   |  %04hu  |  %04hu   |   %04hu    |  %04hu  |  %04hu   |  %04hu    \n", 
@@ -939,8 +939,27 @@ int beacon_status_print(FILE *f, const beacon_status_t *st)
     }
 
     fprintf(f,"gbl |         |        |  %04hu  |  %04hu   |   %04hu    |  %04hu  |  %04hu   |  %04hu  \n", 
-									  st->global_servo_scalers[2], st->global_servo_scalers[1], st->global_servo_scalers[0],
-									  st->global_scalers[2], st->global_scalers[1], st->global_scalers[0]);
+									  st->global_coinc_servo_scalers[2], st->global_coinc_servo_scalers[1], st->global_coinc_servo_scalers[0],
+									  st->global_coinc_trig_scalers[2], st->global_coinc_trig_scalers[1], st->global_coinc_trig_scalers[0]);
+    
+    
+    
+      fprintf(f,"BEAM  | trgthr | srvthr | srv1Hz | srvGate | srv100%sHz | trg1Hz | trgGate | trg100%sHz \n", st->scaler_type == 1 ? "m" : "" , st->scaler_type == 1 ?  "m" : ""); 
+      fprintf(f,"--------------------------------------------------------------------------------------\n"); 
+      for (int i = 0; i < BN_NUM_BEAMS; i++) 
+      {
+
+        fprintf(f,"%02hhu  |   %03hhu  |  %03hhu   |  %04hu  |  %04hu   |   %04hu    |  %04hu  |  %04hu   |  %04hu    \n", 
+                  i , st->beam_trig_thresholds[i], st->beam_servo_thresholds[i], 
+                  st->beam_servo_scalers[i][2], st->beam_servo_scalers[i][1], st->beam_servo_scalers[i][0], 
+                  st->beam_trig_scalers[i][2], st->beam_trig_scalers[i][1], st->beam_trig_scalers[i][0]); 
+      }
+
+      fprintf(f,"gbl |         |        |  %04hu  |  %04hu   |   %04hu    |  %04hu  |  %04hu   |  %04hu  \n", 
+                      st->global_phased_servo_scalers[2], st->global_phased_servo_scalers[1], st->global_phased_servo_scalers[0],
+                      st->global_phased_trig_scalers[2], st->global_phased_trig_scalers[1], st->global_phased_trig_scalers[0]);
+
+
   }
   return 0; 
 }
@@ -996,8 +1015,8 @@ int beacon_header_print(FILE *f, const beacon_header_t *hd)
   tim = gmtime((time_t*) &t); 
   strftime(timstr,sizeof(timstr), "%Y-%m-%d %H:%M:%S", tim);  
 //  fprintf(f, "\ttrig time (est.): %s.%09d UTC\n",timstr, hd->approx_trigger_time_nsecs); 
-  fprintf(f, "\ttrig beams: %x , %x\n", hd->triggered_beams_lower, hd->trigger_beams_upper); 
-  fprintf(f, "\tenabld beams: %x , %x\n", hd->beam_mask_lower, hd->beam_mask_upper); 
+  fprintf(f, "\ttrig beams: %x , %x\n", hd->triggered_beams_lower, hd->triggered_beams_upper); 
+  fprintf(f, "\tenabled beams: %x , %x\n", hd->beam_mask_lower, hd->beam_mask_upper); 
 //  fprintf(f, "\ttriggered beam power: %u\n", hd->beam_power) ; 
 //  fprintf(f,"\tprev sec deadtime: ");
 //  for (i = 0; i < BN_MAX_BOARDS; i++)
@@ -1006,7 +1025,7 @@ int beacon_header_print(FILE *f, const beacon_header_t *hd)
 //      fprintf(f," %u", hd->deadtime[i]); 
 //  }
 
-  fprintf(f,"\n\tchannel_mask: %x", hd->channel_mask); 
+  fprintf(f,"\n\ttriggering channels: %x", hd->triggered_channels); 
   fprintf(f,"\n\tchannel_trig_mask: %x", hd->coinc_trigger_mask); 
 //  fprintf(f,"\n\tdynamic_mask: %x\n", hd->dynamic_beam_mask); 
 //  fprintf(f,"\tchannel_read_mask: \n"); 

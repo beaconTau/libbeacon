@@ -32,14 +32,14 @@ typedef struct flower8_bouquet flower8_bouquet_t;
 
 
 
-typedef struct flower8_coinc_scaler_group
+typedef struct flower8_scaler_coinc_group
 {
-  uint16_t trig_coinc; 
+  uint16_t trig_channel;  //channel probaby isnt the word for this
   uint16_t trig_per_chan[FLOWER8_MAX_TRIG_CHAN]; 
-  uint16_t servo_coinc; 
+  uint16_t servo_channel; 
   uint16_t servo_per_chan[FLOWER8_MAX_TRIG_CHAN]; 
 
-} flower8_coinc_scaler_group; 
+} flower8_scaler_coinc_group; 
 
 typedef struct flower8_scaler_phased_group
 {
@@ -60,19 +60,19 @@ typedef enum
 
 typedef struct flower8_daqstatus
 {
-  flower8_scaler_coinc_group s_1Hz; 
-  flower8_scaler_coinc_group s_1Hz_gated; 
-  flower8_scaler_coinc_group s_100mHz; //100 Hz or 100 mHz, depending on scaler_type
-  flower8_scaler_phased_group s_1Hz; 
-  flower8_scaler_phased_group s_1Hz_gated; 
-  flower8_scaler_phased_group s_100mHz; //100 Hz or 100 mHz, depending on scaler_type
+  flower8_scaler_coinc_group c_s_1Hz; 
+  flower8_scaler_coinc_group c_s_1Hz_gated; 
+  flower8_scaler_coinc_group c_s_100mHz; //100 Hz or 100 mHz, depending on scaler_type
+  flower8_scaler_phased_group p_s_1Hz; 
+  flower8_scaler_phased_group p_s_1Hz_gated; 
+  flower8_scaler_phased_group p_s_100mHz; //100 Hz or 100 mHz, depending on scaler_type
   uint64_t ncycles : 48; 
   uint16_t scaler_counter_1Hz :  16; 
   uint64_t cycle_counter; 
-  uint8_t trig_thresholds[FLOWER8_MAX_TRIG_CHAN]; 
-  uint8_t servo_thresholds[FLOWER8_MAX_TRIG_CHAN]; 
-  uint16_t trig_thresholds[FLOWER8_MAX_TRIG_BEAMS]; 
-  uint16_t servo_thresholds[FLOWER8_MAX_TRIG_BEAMS]; 
+  uint8_t coinc_trig_thresholds[FLOWER8_MAX_TRIG_CHAN]; 
+  uint8_t coinc_servo_thresholds[FLOWER8_MAX_TRIG_CHAN]; 
+  uint16_t phased_trig_thresholds[FLOWER8_MAX_TRIG_BEAMS]; 
+  uint16_t phased_servo_thresholds[FLOWER8_MAX_TRIG_BEAMS]; 
   double when;
   flower8_variable_scaler_type_t scaler_speed; // type of scalers
 } flower8_daqstatus_t; 
@@ -146,10 +146,10 @@ int flower8_close(flower8_dev_t * dev);
 int flower8_dump(FILE* f, flower8_dev_t *dev); 
 int flower8_bouquet_dump(FILE* f, flower8_bouquet_t * b); 
 
-int flower8_configure_trigger(flower8_bouquet_t * b, flower8_trigger_config_t cfg); 
+int flower8_configure_trigger(flower8_bouquet_t * b, flower8_coinc_trigger_config_t cfg); 
 
 int flower8_set_coinc_thresholds(flower8_bouquet_t *b, const uint8_t * trigger_thresholds, const uint8_t * servo_thresholds, uint8_t mask); 
-int flower8_set_phased_thresholds(flower8_bouquet_t *b, const uint16_t * phased_trigger_thresholds, const uint16_t * phased_servo_thresholds, uint8_t mask);
+int flower8_set_phased_thresholds(flower8_bouquet_t *b, const uint16_t * phased_trigger_thresholds, const uint16_t * phased_servo_thresholds);
 
 int flower8_fill_daqstatus(flower8_bouquet_t *dev, flower8_daqstatus_t * st); 
 int flower8_set_variable_scaler_speed(flower8_bouquet_t * b, flower8_variable_scaler_type_t scal); 
