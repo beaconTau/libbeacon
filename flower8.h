@@ -21,7 +21,7 @@
 #include <stdint.h>
 
 #define FLOWER8_MAX_TRIG_CHAN 8 
-#define FLOWER8_MAX_TRIG_BEAMS 42
+#define FLOWER8_MAX_TRIG_BEAMS 24
 
 
 typedef struct flower8_dev flower8_dev_t; 

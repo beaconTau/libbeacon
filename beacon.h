@@ -47,7 +47,7 @@ extern "C" {
 #define BN_LEGACY_MAX_BOARDS 1  
 
 /** The number of trigger beams available*/ 
-#define BN_NUM_BEAMS 42
+#define BN_NUM_BEAMS 24
 
 
 #define BN_NUM_SCALERS 3
@@ -111,11 +111,11 @@ typedef struct beacon_header
   uint64_t trig_time[BN_MAX_BOARDS];                  //!< Board trigger time (raw units) 
   uint32_t approx_trigger_time;                       //!< Board trigger time converted to real units (approx secs), master only
   uint32_t approx_trigger_time_nsecs;                 //!< Board trigger time converted to real units (approx nnsecs), master only
-  uint32_t triggered_beams_lower;                           //!< The lower beams that triggered 0-21 (all 0 in case of concidence trigger)
-  uint32_t triggered_beams_upper;                     //!< The upper beams that triggered 22-41 (all 0 in case of concidence trigger)
+  uint32_t triggered_beams_lower;                           //!< The lower beams that triggered 0-23 (all 0 in case of concidence trigger)
+  uint32_t triggered_beams_upper;                     //!< The upper beams that triggered (empty)
   uint32_t triggered_channels;                        //!< The channels that triggered  (all 0 in case of phased trigger)
-  uint32_t beam_mask_lower;                                 //!< The enabled beams 0-21
-  uint32_t beam_mask_upper;                           //!< The enabled beams 22-41
+  uint32_t beam_mask_lower;                                 //!< The enabled beams (0-23")
+  uint32_t beam_mask_upper;                           //!< The enabled beams  (empty)
   uint32_t deadtime [BN_MAX_BOARDS];                  //!< ??? Will we have this available? If so, this will be a fraction. (store for slave board as well) 
   uint8_t buffer_number;                              //!< the buffer number (do we need this?) 
   uint8_t coinc_trig_channel_mask;                               //!< The channels allowed to participate in the trigger

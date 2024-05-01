@@ -324,10 +324,10 @@ flower8_bouquet_t * flower8_bouquet_prepare(flower8_dev_t * M, flower8_dev_t * S
   b->coinc_trigger_channel_mask = word_mask.bytes[3]; 
 
   flower8_read_register(b->M, FLWR8_REG_BEAM_MASK_LOWER, &word_mask); 
-  b->phased_trigger_mask_lower = word_mask.bytes[3]+(word_mask.bytes[2]<<8)+((word_mask.bytes[1]&0b00011111)<<16); 
+  b->phased_trigger_mask_lower = word_mask.bytes[3]+(word_mask.bytes[2]<<8)+((word_mask.bytes[1])<<16); 
 
   flower8_read_register(b->M, FLWR8_REG_BEAM_MASK_UPPER, &word_mask); 
-  b->phased_trigger_mask_upper = word_mask.bytes[3]+(word_mask.bytes[2]<<8)+((word_mask.bytes[1]&0b00011111)<<16); 
+  b->phased_trigger_mask_upper = word_mask.bytes[3]+(word_mask.bytes[2]<<8)+((word_mask.bytes[1])<<16); 
 
   b->buflen = 512; 
   return b; 
@@ -755,19 +755,19 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
     for (int i = 0; i < 8; i++) ds->c_s_100mHz.servo_per_chan[i] = raw_scalers[50+i+base_coinc_scalers_addr]; 
     
     #define base_phased_scalers_addr 60
-    #define num_beams 42
-    ds->p_s_1Hz.trig_beam = raw_scalers[0+base_phased_scalers_addr];
-    for (int i = 0; i < num_beams; i++) ds->p_s_1Hz.trig_per_beam[i] = raw_scalers[43+i+base_phased_scalers_addr]; 
-    ds->p_s_1Hz.servo_beam = raw_scalers[85+base_phased_scalers_addr];
-    for (int i = 0; i < num_beams; i++) ds->p_s_1Hz.servo_per_beam[i] = raw_scalers[86+i+base_phased_scalers_addr]; 
-    ds->p_s_1Hz_gated.trig_beam = raw_scalers[128+base_phased_scalers_addr];
-    for (int i = 0; i < num_beams; i++) ds->p_s_1Hz_gated.trig_per_beam[i] = raw_scalers[129+i+base_phased_scalers_addr]; 
-    ds->p_s_1Hz_gated.servo_beam = raw_scalers[171+base_phased_scalers_addr];
-    for (int i = 0; i < num_beams; i++) ds->p_s_1Hz_gated.servo_per_beam[i] = raw_scalers[172+i+base_phased_scalers_addr]; 
-    ds->p_s_100mHz.trig_beam = raw_scalers[212+base_phased_scalers_addr];
-    for (int i = 0; i < num_beams; i++) ds->p_s_100mHz.trig_per_beam[i] = raw_scalers[213+i]+base_phased_scalers_addr; 
-    ds->p_s_100mHz.servo_beam = raw_scalers[255+base_phased_scalers_addr];
-    for (int i = 0; i < num_beams; i++) ds->p_s_100mHz.servo_per_beam[i] = raw_scalers[256+i+base_phased_scalers_addr]; 
+
+    ds->p_s_1Hz.trig_beam = raw_scalers[base_phased_scalers_addr];
+    for (int i = 0; i < FLOWER8_MAX_TRIG_BEAMS; i++) ds->p_s_1Hz.trig_per_beam[i] = raw_scalers[1+i+base_phased_scalers_addr]; 
+    ds->p_s_1Hz.servo_beam = raw_scalers[1+FLOWER8_MAX_TRIG_BEAMS+base_phased_scalers_addr];
+    for (int i = 0; i < FLOWER8_MAX_TRIG_BEAMS; i++) ds->p_s_1Hz.servo_per_beam[i] = raw_scalers[2+FLOWER8_MAX_TRIG_BEAMS+i+base_phased_scalers_addr]; 
+    ds->p_s_1Hz_gated.trig_beam = raw_scalers[2+2*FLOWER8_MAX_TRIG_BEAMS+base_phased_scalers_addr];
+    for (int i = 0; i < FLOWER8_MAX_TRIG_BEAMS; i++) ds->p_s_1Hz_gated.trig_per_beam[i] = raw_scalers[3+2*FLOWER8_MAX_TRIG_BEAMS+i+base_phased_scalers_addr]; 
+    ds->p_s_1Hz_gated.servo_beam = raw_scalers[3+3*FLOWER8_MAX_TRIG_BEAMS+base_phased_scalers_addr];
+    for (int i = 0; i < FLOWER8_MAX_TRIG_BEAMS; i++) ds->p_s_1Hz_gated.servo_per_beam[i] = raw_scalers[4+3*FLOWER8_MAX_TRIG_BEAMS+i+base_phased_scalers_addr]; 
+    ds->p_s_100mHz.trig_beam = raw_scalers[4+4*FLOWER8_MAX_TRIG_BEAMS+base_phased_scalers_addr];
+    for (int i = 0; i < FLOWER8_MAX_TRIG_BEAMS; i++) ds->p_s_100mHz.trig_per_beam[i] = raw_scalers[5+4*FLOWER8_MAX_TRIG_BEAMS+i]+base_phased_scalers_addr; 
+    ds->p_s_100mHz.servo_beam = raw_scalers[5+5*FLOWER8_MAX_TRIG_BEAMS+base_phased_scalers_addr];
+    for (int i = 0; i < FLOWER8_MAX_TRIG_BEAMS; i++) ds->p_s_100mHz.servo_per_beam[i] = raw_scalers[6+5*FLOWER8_MAX_TRIG_BEAMS+i+base_phased_scalers_addr]; 
 
     uint64_t t_low = ( be32toh(dest_time[0].word) & 0xffffff ); 
     uint64_t t_high = ( be32toh(dest_time[1].word) & 0xffffff ); 
@@ -1372,8 +1372,8 @@ int flower8_fill_metadata(flower8_bouquet_t *b,flower8_event_metadata_t* meta)
   meta->trig_type = wM[5].bytes[3]  &0xf; 
   meta->pps = wM[5].bytes[2]; 
   meta->trig_channels  = wM[6].bytes[3]; 
-  meta->trig_beams_lower  = wM[7].bytes[3]+(wM[7].bytes[2]<<8)+((wM[7].bytes[1]&0b00011111)<<16); 
-  meta->trig_beams_upper  = wM[8].bytes[3]+(wM[8].bytes[2]<<8)+((wM[8].bytes[1]&0b00011111)<<16); 
+  meta->trig_beams_lower  = wM[7].bytes[3]+(wM[7].bytes[2]<<8)+((wM[7].bytes[1])<<16); 
+  meta->trig_beams_upper  = wM[8].bytes[3]+(wM[8].bytes[2]<<8)+((wM[8].bytes[1])<<16); 
 
   return 0; 
 }
