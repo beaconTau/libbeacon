@@ -40,11 +40,11 @@ int main (int nargs, char ** args)
   flower8_bouquet_t * b = flower8_bouquet_prepare(M,S); 
   flower8_trigger_enables_t t_enables = {.enable_coinc = !!rf}; 
   flower8_set_trigger_enables(b,t_enables); 
-  flower8_trigger_config_t tcfg = {.vpp_mode = 0, .num_coinc = 0, .window = 10 }; 
-  flower8_configure_trigger(b, tcfg); 
+  flower8_coinc_trigger_config_t tcfg = {.vpp_mode = 0, .num_coinc = 0, .window = 10 }; 
+  flower8_configure_coinc_trigger(b, tcfg); 
   uint8_t trig_thresh[8] = { 10,10,10,10,10,10,10,10}; 
   uint8_t servo_thresh[8] = { 8,8,8,8,8,8,8,8}; 
-  flower8_set_thresholds(b, trig_thresh, servo_thresh, 0xff); 
+  flower8_set_coinc_thresholds(b, trig_thresh, servo_thresh, 0xff); 
 
   beacon_header_t hd;
   beacon_event_t ev;
