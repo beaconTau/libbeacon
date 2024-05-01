@@ -829,7 +829,7 @@ int flower8_bouquet_dump(FILE * f, flower8_bouquet_t * b)
      ret+= fprintf(f,"  THRESH_CH%d:  servo:  %d, trig: %d\n", i, b->coinc_servo_thresh[i], b->coinc_trig_thresh[i]);
   }
   
-  for (int i = 0; i < 42; i++) 
+  for (int i = 0; i < FLOWER8_MAX_TRIG_BEAMS; i++) 
   {
      ret+= fprintf(f,"  THRESH_BEAM%d:  servo:  %d, trig: %d\n", i, b->phased_servo_thresh[i], b->phased_trig_thresh[i]);
   }
@@ -1372,8 +1372,8 @@ int flower8_fill_metadata(flower8_bouquet_t *b,flower8_event_metadata_t* meta)
   meta->trig_type = wM[5].bytes[3]  &0xf; 
   meta->pps = wM[5].bytes[2]; 
   meta->trig_channels  = wM[6].bytes[3]; 
-  meta->trig_beams_lower  = wM[7].bytes[3]+(wM[7].bytes[2]<<8)+((wM[7].bytes[1])<<16); 
-  meta->trig_beams_upper  = wM[8].bytes[3]+(wM[8].bytes[2]<<8)+((wM[8].bytes[1])<<16); 
+  meta->trig_beams_lower  = wM[7].bytes[3]+(wM[7].bytes[2]<<8)+((wM[7].bytes[1])<<16); //only good for beams nums 0-23
+  meta->trig_beams_upper  = wM[8].bytes[3]+(wM[8].bytes[2]<<8)+((wM[8].bytes[1])<<16); //should be empty
 
   return 0; 
 }
@@ -1624,7 +1624,7 @@ int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, b
   hd->trig_time[0] = meta.timestamp[0]; 
   hd->trig_time[1] = meta.timestamp[1]; 
   hd->trig_pol = POL_MIXED; 
-  hd->coinc_trig_channel_mask = b->coinc_trigger_channel_mask; 
+  hd->coinc_trigger_mask = b->coinc_trigger_channel_mask; 
   hd->triggered_channels=meta.trig_channels;
   hd->beam_mask_lower=b->phased_trigger_mask_lower;
   hd->beam_mask_upper=b->phased_trigger_mask_upper;

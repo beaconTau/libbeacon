@@ -110,15 +110,17 @@ typedef struct beacon_header
   uint32_t readout_time_ns [BN_MAX_BOARDS];           //!< CPU time of readout, nanoseconds 
   uint64_t trig_time[BN_MAX_BOARDS];                  //!< Board trigger time (raw units) 
   uint32_t approx_trigger_time;                       //!< Board trigger time converted to real units (approx secs), master only
-  uint32_t approx_trigger_time_nsecs;                 //!< Board trigger time converted to real units (approx nnsecs), master only
-  uint32_t triggered_beams_lower;                           //!< The lower beams that triggered 0-23 (all 0 in case of concidence trigger)
+  uint32_t approx_trigger_time_nsecs;
+  uint32_t triggered_beams;                           //!< The beams that triggered  (all 0 in case of concidence trigger)                 //!< Board trigger time converted to real units (approx nnsecs), master only
+  uint32_t triggered_beams_lower;                     //!< The lower beams that triggered 0-23 (all 0 in case of concidence trigger)
   uint32_t triggered_beams_upper;                     //!< The upper beams that triggered (empty)
+  uint32_t beam_mask;                                 //!< The enabled beams(all 0 if phased array trigger not implemented yet)
   uint32_t triggered_channels;                        //!< The channels that triggered  (all 0 in case of phased trigger)
-  uint32_t beam_mask_lower;                                 //!< The enabled beams (0-23")
-  uint32_t beam_mask_upper;                           //!< The enabled beams  (empty)
+  uint32_t beam_mask_lower;                           //!< new The enabled beams (0-23")
+  uint32_t beam_mask_upper;                           //!< new The enabled beams  (empty)
   uint32_t deadtime [BN_MAX_BOARDS];                  //!< ??? Will we have this available? If so, this will be a fraction. (store for slave board as well) 
   uint8_t buffer_number;                              //!< the buffer number (do we need this?) 
-  uint8_t coinc_trig_channel_mask;                               //!< The channels allowed to participate in the trigger
+  uint8_t channel_mask;                               //!< The channels allowed to participate in the trigger
   uint8_t channel_read_mask[BN_MAX_BOARDS];           //!< The channels actually read
   uint8_t gate_flag;                                  //!< gate flag  (used to be channel_overflow but that was never used) 
   uint8_t buffer_mask;                                //!< The buffer mask at time of read out (do we want this?)   
@@ -131,6 +133,7 @@ typedef struct beacon_header
   uint32_t dynamic_beam_mask;                         //!< the automatic beam masker, if enabled
   uint32_t veto_deadtime_counter;                     //!< deadtime counter, if enabled
   uint32_t coinc_trigger_mask;                        //!< coincident trigger mask
+
 } beacon_header_t; 
 
 /**beacon event body.
@@ -166,22 +169,22 @@ typedef struct beacon_status
   uint8_t board_id;                                              //!< The board number assigned at startup. 
   uint32_t dynamic_beam_mask;                                    //!< The dynamic beam mask 
   uint8_t  veto_status;                                          //!< The veto status
-  uint8_t  scaler_type;                                       //! legacy = 0, 1 if using coincidence trigger with 100 mHz scaler, 2 if using coincidence with 100 Hz scaler
+  uint8_t  scaler_type;                                          //! legacy = 0, 1 if using coincidence trigger with 100 mHz scaler, 2 if using coincidence with 100 Hz scaler
+  uint32_t beam_thresholds[BN_NUM_BEAMS];                        //!< The trigger thresholds  for beams
   uint64_t latched_pps_count; 
   uint32_t scaler_update_counter; 
 
-  uint16_t global_coinc_trig_scalers[BN_NUM_SCALERS];   // for coinc trigger
-  uint16_t global_phased_trig_scalers[BN_NUM_SCALERS];   // for phased trigger
-  uint16_t global_coinc_servo_scalers[BN_NUM_SCALERS];   // for coinc trigger
-  uint16_t global_phased_servo_scalers[BN_NUM_SCALERS];   // for phased trigger
-
-  uint16_t channel_trig_scalers[BN_NUM_CHAN][BN_NUM_SCALERS];   // for coinc trigger
+  uint16_t global_coinc_trig_scalers[BN_NUM_SCALERS];            // for coinc trigger
+  uint16_t global_coinc_servo_scalers[BN_NUM_SCALERS];           // for coinc trigger
+  uint16_t channel_trig_scalers[BN_NUM_CHAN][BN_NUM_SCALERS];    // for coinc trigger
   uint16_t channel_servo_scalers[BN_NUM_CHAN][BN_NUM_SCALERS];   // for coinc trigger
   uint8_t channel_trig_thresholds[BN_NUM_CHAN]; 
   uint8_t channel_servo_thresholds[BN_NUM_CHAN]; 
 
-  uint16_t beam_trig_scalers[BN_NUM_BEAMS][BN_NUM_SCALERS];   // for phased trigger
-  uint16_t beam_servo_scalers[BN_NUM_BEAMS][BN_NUM_SCALERS];   // for phased trigger
+  uint16_t global_phased_trig_scalers[BN_NUM_SCALERS];            // for phased trigger
+  uint16_t global_phased_servo_scalers[BN_NUM_SCALERS];           // for phased trigger
+  uint16_t beam_trig_scalers[BN_NUM_BEAMS][BN_NUM_SCALERS];       // for phased trigger
+  uint16_t beam_servo_scalers[BN_NUM_BEAMS][BN_NUM_SCALERS];      // for phased trigger
   uint16_t beam_trig_thresholds[BN_NUM_BEAMS]; 
   uint16_t beam_servo_thresholds[BN_NUM_BEAMS]; 
 } beacon_status_t; 
