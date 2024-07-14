@@ -47,7 +47,7 @@ extern "C" {
 #define BN_LEGACY_MAX_BOARDS 1  
 
 /** The number of trigger beams available*/ 
-#define BN_NUM_BEAMS 24
+#define BN_NUM_BEAMS 20
 
 
 #define BN_NUM_SCALERS 3

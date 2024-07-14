@@ -949,7 +949,7 @@ int beacon_status_print(FILE *f, const beacon_status_t *st)
       for (int i = 0; i < BN_NUM_BEAMS; i++) 
       {
 
-        fprintf(f,"%02hhu  |   %03hhu  |  %03hhu   |  %04hu  |  %04hu   |   %04hu    |  %04hu  |  %04hu   |  %04hu    \n", 
+        fprintf(f,"%02hhu  |   %04hu  |  %04hu   |  %04hu  |  %04hu   |   %04hu    |  %04hu  |  %04hu   |  %04hu    \n", 
                   i , st->beam_trig_thresholds[i], st->beam_servo_thresholds[i], 
                   st->beam_servo_scalers[i][2], st->beam_servo_scalers[i][1], st->beam_servo_scalers[i][0], 
                   st->beam_trig_scalers[i][2], st->beam_trig_scalers[i][1], st->beam_trig_scalers[i][0]); 

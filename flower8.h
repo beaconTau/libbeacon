@@ -20,8 +20,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define FLOWER8_MAX_TRIG_CHAN 8 
-#define FLOWER8_MAX_TRIG_BEAMS 24
+#define FLOWER8_MAX_TRIG_CHAN 8
+#define FLOWER8_MAX_TRIG_BEAMS 20  //def an oversight... there's beam and channels defs in this and beacon.h
 
 
 typedef struct flower8_dev flower8_dev_t; 
@@ -236,7 +236,7 @@ int flower8_set_trigger_enables(flower8_bouquet_t * dev, flower8_trigger_enables
 int flower8_get_trigger_enables(flower8_bouquet_t * dev, flower8_trigger_enables_t *enables); 
 
 int flower8_set_coinc_trigger_mask(flower8_bouquet_t * dev, uint8_t mask); 
-int flower8_set_phased_trigger_mask(flower8_bouquet_t * dev, uint16_t trig_mask_lower,uint16_t trig_mask_upper); 
+int flower8_set_phased_trigger_mask(flower8_bouquet_t * dev, uint32_t trig_mask_lower,uint32_t trig_mask_upper); 
 
 /**Set the delayed PPS delay. The delay is in multiples of 40 ns*/
 int flower8_set_delayed_pps_delay(flower8_bouquet_t * dev, uint32_t delay); 

@@ -77,7 +77,7 @@ typedef enum
   FLWR8_REG_SET_READ_REG = 0x6d,
   FLWR8_REG_RESET_COUNTERS=0x7e,
   FLWR8_PHASED_THRESHOLD_BASE=0x80,
-  FLWR8_REG_MAX=0x8f
+  FLWR8_REG_MAX=0xff
 } e_flower8_reg; 
 
 typedef enum
@@ -456,7 +456,6 @@ flower8_dev_t * flower8_open(const char * spi_device, int spi_en_gpio, int trig_
   dev->fwdate.date.day = word.bytes[3]; 
   dev->fwdate.date.month = word.bytes[2] & 0xf; 
   dev->fwdate.date.year = (((uint32_t)word.bytes[1]) << 4) | (word.bytes[2] >> 4); 
-
   #ifdef PARALLEL_READOUT
   pthread_mutex_init(&dev->work_mutex,0); 
   pthread_cond_init(&dev->work_ready,0); 
@@ -490,7 +489,7 @@ int flower8_read_registers(flower8_dev_t*dev, int nreg,  const uint8_t *  addr, 
   int ret = 0;
   for (int i = 0; i < nreg; i++)
   {
-    if (addr[i] <1 || addr[i] > FLWR8_REG_MAX) continue; 
+    if (addr[i] <1) continue; //|| addr[i]>FLWR8_REG_MAX
 
     solicit_words[ireg].bytes[0] = FLWR8_REG_SET_READ_REG; 
     solicit_words[ireg].bytes[3] = addr[i]; 
@@ -630,12 +629,14 @@ int flower8_close(flower8_dev_t * dev)
   return 0; 
 }
 
-#define TOTAL_SCALERS 6*(FLOWER8_MAX_TRIG_BEAMS+1)+6*(FLOWER8_MAX_TRIG_CHAN+1)+6
-static flower8_word_t scal_sel_regs[TOTAL_SCALERS]; 
+#define MAX_SCALER_REGS (3*(FLOWER8_MAX_TRIG_BEAMS+1)+3*(FLOWER8_MAX_TRIG_CHAN+1)+3)
+#define TOTAL_SCALERS (2*MAX_SCALER_REGS)
+
+static flower8_word_t scal_sel_regs[MAX_SCALER_REGS]; 
 __attribute__((constructor)) 
 static void fill_scal_sel_regs() 
 {
-  for (int i = 0; i < TOTAL_SCALERS; i++) 
+  for (int i = 0; i < MAX_SCALER_REGS; i++) 
   {
     scal_sel_regs[i].bytes[0] = FLWR8_REG_SCAL_SEL;
     scal_sel_regs[i].bytes[3] = i; 
@@ -648,7 +649,7 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
   if (!b || !b->M) return -1; 
 
 
-  #define MAX_DSNMSG (3*(TOTAL_SCALERS)+5)
+  #define MAX_DSNMSG (3*(MAX_SCALER_REGS)+5)
 
   struct spi_ioc_transfer xfer[MAX_DSNMSG] = {0}; 
 
@@ -656,8 +657,8 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
   static flower8_word_t selectread_word = {.bytes = {FLWR8_REG_SET_READ_REG,0,0, FLWR8_REG_SCAL_RD}};
   static flower8_word_t update_tlow = {.bytes = {FLWR8_REG_SET_READ_REG,0,0,FLWR8_REG_SCAL_TIME_LOW}}; 
   static flower8_word_t update_thigh = {.bytes = {FLWR8_REG_SET_READ_REG,0,0,FLWR8_REG_SCAL_TIME_HIGH}}; 
-  flower8_word_t dest_scaler[TOTAL_SCALERS+4] = {0}; 
-  uint16_t raw_scalers[2*(TOTAL_SCALERS+4)]; // this will be ocpied from dest_scaler
+  flower8_word_t dest_scaler[MAX_SCALER_REGS] = {0}; 
+  uint16_t raw_scalers[TOTAL_SCALERS]={0}; // this will be ocpied from dest_scaler
   flower8_word_t dest_time[2] = {0}; 
 
   struct timespec start;
@@ -696,9 +697,8 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
   xfer[4].len = sizeof(flower8_word_t); 
   xfer[4].cs_change = 1; 
 
-
   int ixfer = 0; 
-  int max_reg = TOTAL_SCALERS; 
+  int max_reg = MAX_SCALER_REGS; 
   for (int ireg = 0; ireg <max_reg; ireg++) 
   {
 	  //if (ireg == 9) ireg++;  
@@ -719,40 +719,41 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
     ixfer++; 
   }
 
-  int nxfer =  3*ixfer+5; 
+  int nxfer =  3*MAX_SCALER_REGS+5; 
 
   clock_gettime(CLOCK_REALTIME,&start);
   USING(b->M); 
   int ret = spi_msg(b->M->spi_fd, nxfer, xfer); 
   DONE(b->M); 
   clock_gettime(CLOCK_REALTIME,&end);
-//  printf("status ioctl: %d\n", ret); 
+  //printf("status ioctl: %d\n", ret);
 
   ds->when = (start.tv_sec*0.5 + end.tv_sec*0.5) + 1e-9*(start.tv_nsec*0.5 + end.tv_nsec*0.5); 
   ds->scaler_speed =b->scal_speed;
 
   if (ret > 0) 
   {
-    for (int i = 0; i < 32; i++) 
+    for (int i = 0; i < MAX_SCALER_REGS; i++) 
     {
       uint16_t low =  dest_scaler[i].bytes[3] | ((dest_scaler[i].bytes[2] & 0x0f ) << 8) ;
       uint16_t high = (dest_scaler[i].bytes[1] << 4)  | ((dest_scaler[i].bytes[2] & 0xf0)>>4); 
       raw_scalers[2*i] = low;
       raw_scalers[2*i+1] = high;
+      //printf("%i %i\n",low,high);
     }
-    #define base_coinc_scalers_addr 6
-    ds->c_s_1Hz.trig_channel = raw_scalers[0+base_coinc_scalers_addr];
-    for (int i = 0; i < 8; i++) ds->c_s_1Hz.trig_per_chan[i] = raw_scalers[1+i+base_coinc_scalers_addr]; 
-    ds->c_s_1Hz.servo_channel = raw_scalers[9+base_coinc_scalers_addr];
-    for (int i = 0; i < 8; i++) ds->c_s_1Hz.servo_per_chan[i] = raw_scalers[10+i+base_coinc_scalers_addr]; 
-    ds->c_s_1Hz_gated.trig_channel = raw_scalers[20+base_coinc_scalers_addr];
-    for (int i = 0; i < 8; i++) ds->c_s_1Hz_gated.trig_per_chan[i] = raw_scalers[21+i+base_coinc_scalers_addr]; 
-    ds->c_s_1Hz_gated.servo_channel = raw_scalers[29+base_coinc_scalers_addr];
-    for (int i = 0; i < 8; i++) ds->c_s_1Hz_gated.servo_per_chan[i] = raw_scalers[30+i+base_coinc_scalers_addr]; 
-    ds->c_s_100mHz.trig_channel = raw_scalers[40+base_coinc_scalers_addr];
-    for (int i = 0; i < 8; i++) ds->c_s_100mHz.trig_per_chan[i] = raw_scalers[41+i+base_coinc_scalers_addr]; 
-    ds->c_s_100mHz.servo_channel = raw_scalers[49+base_coinc_scalers_addr];
-    for (int i = 0; i < 8; i++) ds->c_s_100mHz.servo_per_chan[i] = raw_scalers[50+i+base_coinc_scalers_addr]; 
+    #define base_coinc_scaler 6
+    ds->c_s_1Hz.trig_channel = raw_scalers[base_coinc_scaler];
+    for (int i = 0; i < 8; i++) ds->c_s_1Hz.trig_per_chan[i] = raw_scalers[1+base_coinc_scaler+i]; 
+    ds->c_s_1Hz.servo_channel = raw_scalers[9+base_coinc_scaler];
+    for (int i = 0; i < 8; i++) ds->c_s_1Hz.servo_per_chan[i] = raw_scalers[10+i+base_coinc_scaler]; 
+    ds->c_s_1Hz_gated.trig_channel = raw_scalers[18+base_coinc_scaler];
+    for (int i = 0; i < 8; i++) ds->c_s_1Hz_gated.trig_per_chan[i] = raw_scalers[19+i+base_coinc_scaler]; 
+    ds->c_s_1Hz_gated.servo_channel = raw_scalers[27+base_coinc_scaler];
+    for (int i = 0; i < 8; i++) ds->c_s_1Hz_gated.servo_per_chan[i] = raw_scalers[28+i+base_coinc_scaler]; 
+    ds->c_s_100mHz.trig_channel = raw_scalers[36+base_coinc_scaler];
+    for (int i = 0; i < 8; i++) ds->c_s_100mHz.trig_per_chan[i] = raw_scalers[37+i+base_coinc_scaler]; 
+    ds->c_s_100mHz.servo_channel = raw_scalers[45+base_coinc_scaler];
+    for (int i = 0; i < 8; i++) ds->c_s_100mHz.servo_per_chan[i] = raw_scalers[46+i+base_coinc_scaler]; 
     
     #define base_phased_scalers_addr 60
 
@@ -1557,10 +1558,10 @@ int flower8_set_coinc_trigger_mask(flower8_bouquet_t *b, uint8_t trig_mask)
   return -1; 
 }
 
-int flower8_set_phased_trigger_mask(flower8_bouquet_t *b, uint16_t trig_mask_lower,uint16_t trig_mask_upper) 
+int flower8_set_phased_trigger_mask(flower8_bouquet_t *b, uint32_t trig_mask_lower,uint32_t trig_mask_upper) 
 {
-  flower8_word_t mask_word_lower = {.bytes={FLWR8_REG_BEAM_MASK_LOWER,((trig_mask_lower&0x1f0000)>>16),((trig_mask_lower&0xff00)>>8),trig_mask_lower&0xff}}; 
-  flower8_word_t mask_word_upper = {.bytes={FLWR8_REG_BEAM_MASK_UPPER,((trig_mask_upper&0x1f0000)>>16),((trig_mask_upper&0xff00)>>8),trig_mask_upper&0xff}}; 
+  flower8_word_t mask_word_lower = {.bytes={FLWR8_REG_BEAM_MASK_LOWER,((trig_mask_lower&0xff0000)>>16),((trig_mask_lower&0xff00)>>8),trig_mask_lower&0xff}}; 
+  flower8_word_t mask_word_upper = {.bytes={FLWR8_REG_BEAM_MASK_UPPER,((trig_mask_upper&0xff0000)>>16),((trig_mask_upper&0xff00)>>8),trig_mask_upper&0xff}}; 
 
 
   if (!write_word(b->M,&mask_word_lower)||!write_word(b->M,&mask_word_upper))
@@ -1639,7 +1640,6 @@ int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, b
 		  BN_TRIG_NONE; 
 
   hd->gate_flag = meta.pps; 
-  hd->triggered_channels = meta.trig_channels; 
   hd->pps_counter = meta.pps_count; 
   ev->event_number = meta.event_number + b->event_number_offset; 
   ev->buffer_length = b->buflen; 
