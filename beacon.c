@@ -932,13 +932,13 @@ int beacon_status_print(FILE *f, const beacon_status_t *st)
     for (int i = 0; i < BN_NUM_CHAN; i++) 
     {
 
-      fprintf(f,"%02hhu  |   %03hhu  |  %03hhu   |  %04hu  |  %04hu   |   %04hu    |  %04hu  |  %04hu   |  %04hu    \n", 
+      fprintf(f,"%02i  |   %03i  |  %03i   |  %04i  |  %04i   |   %04i    |  %04i  |  %04i   |  %04i    \n", 
                 i , st->channel_trig_thresholds[i], st->channel_servo_thresholds[i], 
                 st->channel_servo_scalers[i][2], st->channel_servo_scalers[i][1], st->channel_servo_scalers[i][0], 
                 st->channel_trig_scalers[i][2], st->channel_trig_scalers[i][1], st->channel_trig_scalers[i][0]); 
     }
 
-    fprintf(f,"gbl |         |        |  %04hu  |  %04hu   |   %04hu    |  %04hu  |  %04hu   |  %04hu  \n", 
+    fprintf(f,"gbl |         |        |  %04i  |  %04i   |   %04i    |  %04i  |  %04i   |  %04i  \n", 
 									  st->global_coinc_servo_scalers[2], st->global_coinc_servo_scalers[1], st->global_coinc_servo_scalers[0],
 									  st->global_coinc_trig_scalers[2], st->global_coinc_trig_scalers[1], st->global_coinc_trig_scalers[0]);
     
@@ -949,13 +949,13 @@ int beacon_status_print(FILE *f, const beacon_status_t *st)
       for (int i = 0; i < BN_NUM_BEAMS; i++) 
       {
 
-        fprintf(f,"%02hhu  |   %04hu  |  %04hu   |  %04hu  |  %04hu   |   %04hu    |  %04hu  |  %04hu   |  %04hu    \n", 
+        fprintf(f,"%02i  |   %04i  |  %04i   |  %04i  |  %04i   |   %04i    |  %04i  |  %04i   |  %04i    \n", 
                   i , st->beam_trig_thresholds[i], st->beam_servo_thresholds[i], 
                   st->beam_servo_scalers[i][2], st->beam_servo_scalers[i][1], st->beam_servo_scalers[i][0], 
                   st->beam_trig_scalers[i][2], st->beam_trig_scalers[i][1], st->beam_trig_scalers[i][0]); 
       }
 
-      fprintf(f,"gbl |         |        |  %04hu  |  %04hu   |   %04hu    |  %04hu  |  %04hu   |  %04hu  \n", 
+      fprintf(f,"gbl |         |        |  %04i  |  %04i   |   %04i    |  %04i  |  %04i   |  %04i  \n", 
                       st->global_phased_servo_scalers[2], st->global_phased_servo_scalers[1], st->global_phased_servo_scalers[0],
                       st->global_phased_trig_scalers[2], st->global_phased_trig_scalers[1], st->global_phased_trig_scalers[0]);
 

@@ -31,28 +31,19 @@ int main (int nargs, char ** args)
 
   beacon_status_t st;
 
-  printf("coinc %i, phased %i\n",t_enables.enable_coinc,t_enables.enable_phased);
+  //printf("coinc %i, phased %i\n",t_enables.enable_coinc,t_enables.enable_phased);
 
   flower8_set_coinc_trigger_mask(b,0xff);
   flower8_configure_coinc_trigger(b, tcfg); 
   flower8_set_trigger_enables(b,t_enables);
-  FILE * stf = fopen("scan.dat","w"); 
-
 
   uint8_t threshs[8]={thresh,thresh,thresh,thresh,thresh,thresh,thresh,thresh};
   flower8_set_coinc_thresholds(b,threshs,threshs,0xff);
   flower8_bouquet_dump(stdout,b);
   beacon_fill_status(b,&st); 
-  beacon_status_print(stdout, &st); 
-  beacon_status_write(stf, &st);
-
-  sleep(4);
-  beacon_fill_status(b,&st);
-  beacon_status_print(stdout,&st);
-  beacon_status_write(stf,&st);
+  beacon_status_print(stdout, &st);
 
   flower8_bouquet_discard(b,1); 
-  fclose(stf); 
   return 0; 
 
 }

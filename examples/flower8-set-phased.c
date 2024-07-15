@@ -29,14 +29,13 @@ int main (int nargs, char ** args)
 
   flower8_bouquet_t * b = flower8_bouquet_prepare(M,S); 
   flower8_trigger_enables_t t_enables = {.enable_coinc = 0, .enable_phased=1};  
-  //flower8_coinc_trigger_config_t tcfg = {.vpp_mode = 1, .num_coinc = 0, .window = 10 }; 
+
   flower8_set_phased_trigger_mask(b,mask,0);
   beacon_status_t st;
   flower8_get_trigger_enables(b,&t_enables);
-  printf("coinc %i, phased %i\n",t_enables.enable_coinc,t_enables.enable_phased);
+  //printf("coinc %i, phased %i\n",t_enables.enable_coinc,t_enables.enable_phased);
 
   flower8_set_trigger_enables(b,t_enables);
-  FILE * stf = fopen("scan.dat","w"); 
 
   uint16_t threshs[20];
   for(int i =0;i<20;i++) 
@@ -49,15 +48,8 @@ int main (int nargs, char ** args)
   flower8_bouquet_dump(stdout,b);
   beacon_fill_status(b,&st); 
   beacon_status_print(stdout, &st); 
-  beacon_status_write(stf, &st);
 
-  sleep(4);
-  beacon_fill_status(b,&st);
-  beacon_status_print(stdout,&st);
-  beacon_status_write(stf,&st);
-
-  flower8_bouquet_discard(b,1); 
-  fclose(stf); 
+  flower8_bouquet_discard(b,1);
   return 0; 
 
 }

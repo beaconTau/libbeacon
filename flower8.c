@@ -735,11 +735,12 @@ int flower8_fill_daqstatus(flower8_bouquet_t *b, flower8_daqstatus_t *ds)
   {
     for (int i = 0; i < MAX_SCALER_REGS; i++) 
     {
+      //printf("raw reg %i\t",dest_scaler[i].bytes[3]);
       uint16_t low =  dest_scaler[i].bytes[3] | ((dest_scaler[i].bytes[2] & 0x0f ) << 8) ;
       uint16_t high = (dest_scaler[i].bytes[1] << 4)  | ((dest_scaler[i].bytes[2] & 0xf0)>>4); 
       raw_scalers[2*i] = low;
       raw_scalers[2*i+1] = high;
-      //printf("%i %i\n",low,high);
+      //printf("%i %i %i %i\n",2*i,2*i+1,low,high);
     }
     #define base_coinc_scaler 6
     ds->c_s_1Hz.trig_channel = raw_scalers[base_coinc_scaler];
@@ -1315,7 +1316,7 @@ static double getrms(int N, uint8_t* X)
 int flower8_set_trigger_enables(flower8_bouquet_t *b, flower8_trigger_enables_t enables)
 {
   //not sure if extin should be 1 but... let's just do it? okay what are all these lol
-  flower8_word_t tin = {.bytes = {FLWR8_REG_TRIG_ENABLES,0, enables.enable_coinc+(enables.enable_phased<1), enables.enable_pps }}; 
+  flower8_word_t tin = {.bytes = {FLWR8_REG_TRIG_ENABLES,0, enables.enable_coinc+(enables.enable_phased<<1), enables.enable_pps }}; 
   flower8_word_t tout = {.bytes={FLWR8_REG_SMATRIG,0,enables.enable_pps,enables.enable_coinc}};
   flower8_word_t tinS = {.bytes={FLWR8_REG_TRIG_ENABLES,1,0, enables.enable_pps}};
   b->trig_enables.enable_pps=enables.enable_pps,
@@ -1373,7 +1374,7 @@ int flower8_fill_metadata(flower8_bouquet_t *b,flower8_event_metadata_t* meta)
   meta->trig_type = wM[5].bytes[3]  &0xf; 
   meta->pps = wM[5].bytes[2]; 
   meta->trig_channels  = wM[6].bytes[3]; 
-  meta->trig_beams_lower  = wM[7].bytes[3]+(wM[7].bytes[2]<<8)+((wM[7].bytes[1])<<16); //only good for beams nums 0-23
+  meta->trig_beams_lower  = wM[7].bytes[3]+(wM[7].bytes[2]<<8)+((wM[7].bytes[1])<<16); //only good for beams nums 0-19
   meta->trig_beams_upper  = wM[8].bytes[3]+(wM[8].bytes[2]<<8)+((wM[8].bytes[1])<<16); //should be empty
 
   return 0; 
@@ -1555,6 +1556,7 @@ int flower8_set_coinc_trigger_mask(flower8_bouquet_t *b, uint8_t trig_mask)
     b->coinc_trigger_channel_mask = trig_mask; 
     return 0; 
   }
+  fprintf(stderr,"failed to write coinc mask");
   return -1; 
 }
 
