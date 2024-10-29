@@ -33,7 +33,7 @@ static uint16_t stupid_fletcher16_append(int N, const void * vbuf, uint16_t appe
     for (i = 0; i < N; i++)
     {
       sum1 =  (sum1 +buf[i]) % 255; 
-      sum2 += (sum1 + sum2) % 255;;
+      sum2 += (sum1 + sum2) % 255;
     }
   }
 
@@ -372,7 +372,7 @@ static int beacon_header_generic_read(struct generic_file gf, beacon_header_t *h
       got = generic_read(gf, wanted, h2); 
       cksum = stupid_fletcher16(wanted, h2); 
       break;
-   case 3: //this is the most recent header!
+   case 3: 
       wanted = sizeof(beacon_header_v3_t); 
       got = generic_read(gf, wanted, h); 
       cksum = stupid_fletcher16(wanted, h); 
@@ -594,11 +594,11 @@ typedef struct beacon_status_v2
 typedef struct beacon_status_v3
 {
   uint16_t global_scalers[BN_NUM_SCALERS];
-  uint16_t beam_scalers[BN_NUM_SCALERS][BN_NUM_BEAMS];    //!< The scaler for each beam (12 bits) . All 0s if coinc trigger... 
+  uint16_t beam_scalers[BN_NUM_SCALERS][BN_LEGACY_NUM_BEAMS];    //!< The scaler for each beam (12 bits) . All 0s if coinc trigger... 
   uint32_t deadtime;                                             //!< The deadtime fraction (units tbd) 
   uint32_t readout_time;                                         //!< CPU time of readout, seconds
   uint32_t readout_time_ns;                                      //!< CPU time of readout, nanoseconds 
-  uint32_t beam_thresholds[BN_NUM_BEAMS];                       //!< The trigger thresholds  for beams
+  uint32_t beam_thresholds[BN_LEGACY_NUM_BEAMS];                       //!< The trigger thresholds  for beams
   uint64_t latched_pps_time;                                     //!< A timestamp corresponding to a pps time 
   uint8_t board_id;                                              //!< The board number assigned at startup. 
   uint32_t dynamic_beam_mask;                                    //!< The dynamic beam mask 
@@ -671,12 +671,12 @@ static int beacon_status_generic_read(struct generic_file gf, beacon_status_t *s
       cksum = stupid_fletcher16(wanted, st); 
       break; 
    case 2: 
-      wanted = sizeof(beacon_status_v1_t); 
+      wanted = sizeof(beacon_status_v2_t); 
       got = generic_read(gf, wanted, st); 
       cksum = stupid_fletcher16(wanted, st); 
       break; 
  
-   case 3: //this is the most recent status!
+   case 3:
       wanted = sizeof(beacon_status_v3_t); 
       got = generic_read(gf, wanted, st); 
       cksum = stupid_fletcher16(wanted, st); 
