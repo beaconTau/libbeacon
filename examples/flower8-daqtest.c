@@ -58,7 +58,7 @@ int main (int nargs, char ** args)
   beacon_status_print(stdout, &st); 
   for (int i = 0; i < 10; i++) 
   {
-    while (beacon_wait_for_and_fill_event(b,&hd,&ev, 100))
+    while (beacon_wait_for_and_fill_event(b,&hd,&ev, 100, 0))
     {
       if (force)
       {

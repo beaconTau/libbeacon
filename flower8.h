@@ -246,7 +246,7 @@ int flower8_get_delayed_pps_delay(flower8_bouquet_t * dev, uint32_t* delay);
 int flower8_get_fwversion(flower8_dev_t *dev, uint8_t *major, uint8_t *minor, uint8_t *rev, uint16_t *year, uint8_t *month, uint8_t *day); 
 
 #ifdef _BEACON_ 
-int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, beacon_event_t* ev, int timeout); 
+int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, beacon_event_t * ev, int timeout, int boards_swapped);
 int beacon_fill_status(flower8_bouquet_t *b, beacon_status_t * st); 
 
 #endif

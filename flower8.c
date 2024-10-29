@@ -1317,7 +1317,7 @@ int flower8_set_trigger_enables(flower8_bouquet_t *b, flower8_trigger_enables_t 
 {
   //not sure if extin should be 1 but... let's just do it? okay what are all these lol
   flower8_word_t tin = {.bytes = {FLWR8_REG_TRIG_ENABLES,0, enables.enable_coinc+(enables.enable_phased<<1), enables.enable_pps }}; 
-  flower8_word_t tout = {.bytes={FLWR8_REG_SMATRIG,0,enables.enable_pps,enables.enable_coinc}};
+  flower8_word_t tout = {.bytes={FLWR8_REG_SMATRIG,0,enables.enable_pps,enables.enable_coinc||enables.enable_phased}};
   flower8_word_t tinS = {.bytes={FLWR8_REG_TRIG_ENABLES,1,0, enables.enable_pps}};
   b->trig_enables.enable_pps=enables.enable_pps,
   b->trig_enables.enable_coinc=enables.enable_coinc,
@@ -1607,7 +1607,7 @@ int flower8_set_variable_scaler_speed(flower8_bouquet_t * b, flower8_variable_sc
 }
 
 #ifdef _BEACON_
-int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, beacon_event_t * ev, int timeout) 
+int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, beacon_event_t * ev, int timeout, int boards_swapped) 
 {
 
   int ret = flower8_event_wait(b,timeout); 
@@ -1658,8 +1658,18 @@ int beacon_wait_for_and_fill_event(flower8_bouquet_t * b, beacon_header_t *hd, b
   int destcnt = 0;
   for (int ichan = 0; ichan < 8; ichan++)  
   {
-    destM[destcnt] = ev->data[0][ichan]; 
-    destS[destcnt++] = ev->data[1][ichan]; 
+    if(boards_swapped==0)
+    {
+      destM[destcnt] = ev->data[0][ichan]; 
+      destS[destcnt++] = ev->data[1][ichan]; 
+    }
+
+    else
+    {
+      destM[destcnt] = ev->data[1][ichan]; 
+      destS[destcnt++] = ev->data[0][ichan]; 
+    }
+
   }
 #ifdef PARALLEL_READOUT
   pthread_mutex_lock(&b->M->work_mutex); 
